@@ -335,6 +335,11 @@ clone_repo() {
     fi
     git clone https://github.com/mdario971/SAIC.git
     cd SAIC
+    
+    # Fix package.json to use tsx for production (more reliable)
+    # The build script requires esbuild which may have issues
+    sed -i 's|"start": "NODE_ENV=production node dist/index.cjs"|"start": "NODE_ENV=production tsx server/index.ts"|g' package.json
+    sed -i 's|"build": "tsx script/build.ts"|"build": "vite build \&\& mkdir -p server/public \&\& cp -r dist/public/* server/public/"|g' package.json
 }
 
 create_embedded_app() {
