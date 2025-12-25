@@ -32,6 +32,7 @@ export function useStrudelAudio(options: UseStrudelAudioOptions = {}): UseStrude
   const gainNodeRef = useRef<GainNode | null>(null);
   const currentCodeRef = useRef<string>('');
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const loopIntervalRef = useRef<number | null>(null);
 
   const initialize = useCallback(async () => {
     if (isInitialized) return;
@@ -175,7 +176,34 @@ export function useStrudelAudio(options: UseStrudelAudioOptions = {}): UseStrude
         await audioContextRef.current.resume();
       }
       
+      // Clear any existing loop
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
+      
+      // Calculate loop duration based on pattern
+      const noteMatch = code.match(/note\s*\(\s*["']([^"']+)["']\s*\)/);
+      const soundMatch = code.match(/s\s*\(\s*["']([^"']+)["']\s*\)|sound\s*\(\s*["']([^"']+)["']\s*\)/);
+      
+      let patternLength = 4;
+      if (noteMatch) {
+        patternLength = noteMatch[1].split(/\s+/).filter(n => n && n !== '~').length;
+      } else if (soundMatch) {
+        patternLength = (soundMatch[1] || soundMatch[2]).split(/\s+/).filter(s => s && s !== '~').length;
+      }
+      
+      const loopDuration = (60 / bpm) * patternLength * 1000;
+      
+      // Play immediately
       playSimplePattern(code);
+      
+      // Loop the pattern
+      loopIntervalRef.current = window.setInterval(() => {
+        if (currentCodeRef.current) {
+          playSimplePattern(currentCodeRef.current);
+        }
+      }, loopDuration);
+      
       setIsPlaying(true);
       return Promise.resolve();
     } catch (err) {
@@ -183,14 +211,23 @@ export function useStrudelAudio(options: UseStrudelAudioOptions = {}): UseStrude
       console.error('Playback error:', err);
       return Promise.reject(err);
     }
-  }, [isInitialized, initialize, playSimplePattern]);
+  }, [isInitialized, initialize, playSimplePattern, bpm]);
 
   const stop = useCallback(() => {
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
     stopAllOscillators();
+    currentCodeRef.current = '';
     setIsPlaying(false);
   }, [stopAllOscillators]);
 
   const pause = useCallback(() => {
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
     if (audioContextRef.current?.state === 'running') {
       audioContextRef.current.suspend();
     }
@@ -213,6 +250,9 @@ export function useStrudelAudio(options: UseStrudelAudioOptions = {}): UseStrude
 
   useEffect(() => {
     return () => {
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
       stopAllOscillators();
       if (audioContextRef.current) {
         audioContextRef.current.close();
