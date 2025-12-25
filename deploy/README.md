@@ -182,6 +182,43 @@ node --version  # Should be v20.x
 
 ---
 
+## Security: Password Protection
+
+The app supports basic HTTP authentication. To enable it, add these to your `.env` file:
+
+```bash
+# /opt/SAIC/.env
+OPENAI_API_KEY=sk-your-key-here
+AUTH_USER=your-username
+AUTH_PASS=your-secure-password
+```
+
+**Minimum Security Requirements:**
+- Use a strong password (12+ characters, mix of letters/numbers/symbols)
+- Always use HTTPS in production (install SSL certificate)
+- Keep your `.env` file secure: `chmod 600 /opt/SAIC/.env`
+
+If `AUTH_USER` and `AUTH_PASS` are not set, the app runs without password protection.
+
+---
+
+## OpenAI API Costs
+
+Each AI generation request uses your OpenAI API key:
+
+| Model | Input Cost | Output Cost |
+|-------|------------|-------------|
+| GPT-4o | $2.50/1M tokens | $10/1M tokens |
+
+**Estimated costs:**
+- Single generation: $0.001-0.005 (less than 1 cent)
+- 100 generations/day: ~$0.10-0.50/day
+- Heavy usage (500/day): ~$1-2/day
+
+Monitor your usage at: https://platform.openai.com/usage
+
+---
+
 ## Audio Streaming Setup (Optional)
 
 For live audio streaming to online listeners:
