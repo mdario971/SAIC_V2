@@ -1,126 +1,208 @@
-# Strudel AI - Debian 13 VPS Deployment Guide
+# Strudel AI - Deployment Scripts
 
-This guide provides step-by-step instructions to deploy the Strudel AI application on a Debian 13 server.
+Deployment scripts for **Debian 13** and **Rocky Linux 9**.
 
-## Prerequisites
+## Hardware Requirements
 
-- Debian 13 (Trixie) server with root or sudo access
-- SSH access to your server
-- A domain name (optional, but recommended)
-- OpenAI API key
+| Spec | Minimum | Recommended |
+|------|---------|-------------|
+| **RAM** | 512 MB | 1 GB |
+| **CPU** | 1 vCPU | 1-2 vCPU |
+| **Storage** | 10 GB SSD | 20 GB SSD |
+| **Bandwidth** | 500 GB/mo | 1 TB/mo |
 
-## Quick Deploy (One-Command)
+**Estimated Cost**: $4-6/month on Hetzner, Vultr, DigitalOcean, or Linode.
 
-SSH into your server and run:
+---
 
-```bash
-curl -sSL https://raw.githubusercontent.com/your-repo/strudel-ai/main/deploy/install.sh | bash
-```
+## Debian 13 Installation
 
-Or manually copy the scripts and run:
-
-```bash
-chmod +x deploy/*.sh
-sudo ./deploy/install.sh
-```
-
-## Manual Installation Steps
-
-### 1. Install System Dependencies
+### Option 1: Quick Install (requires GitHub repo)
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl git nginx certbot python3-certbot-nginx
+curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/install-debian.sh
+chmod +x install.sh
+sudo bash install.sh
 ```
 
-### 2. Install Node.js 20
+### Option 2: Full Install (embedded code, no GitHub needed)
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install-debian.sh
+chmod +x install.sh
+sudo bash install.sh
 ```
 
-### 3. Install PM2 Process Manager
+### Files
+
+| File | Description |
+|------|-------------|
+| `install-debian.sh` | Quick install using git clone |
+| `full-install-debian.sh` | Complete install with embedded code |
+| `nginx-debian.conf` | Nginx configuration |
+
+---
+
+## Rocky Linux 9 Installation
+
+### Option 1: Quick Install (requires GitHub repo)
 
 ```bash
-sudo npm install -g pm2
+curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/install-rocky.sh
+chmod +x install.sh
+sudo bash install.sh
 ```
 
-### 4. Clone and Setup Application
+### Option 2: Full Install (embedded code, no GitHub needed)
 
 ```bash
-cd /opt
-sudo git clone https://your-repo-url/strudel-ai.git
-cd strudel-ai
-sudo npm install
-sudo npm run build
+curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install-rocky.sh
+chmod +x install.sh
+sudo bash install.sh
 ```
 
-### 5. Configure Environment Variables
+### Files
 
-```bash
-sudo cp .env.example .env
-sudo nano .env
-# Add your OPENAI_API_KEY and other secrets
-```
+| File | Description |
+|------|-------------|
+| `install-rocky.sh` | Quick install using git clone |
+| `full-install-rocky.sh` | Complete install with embedded code |
+| `nginx-rocky.conf` | Nginx configuration |
 
-### 6. Start with PM2
+---
 
-```bash
-pm2 start npm --name "strudel-ai" -- start
-pm2 save
-pm2 startup
-```
+## Key Differences Between Distros
 
-### 7. Configure Nginx
+| Feature | Debian 13 | Rocky Linux 9 |
+|---------|-----------|---------------|
+| Package Manager | `apt` | `dnf` |
+| Firewall | `ufw` | `firewalld` |
+| SELinux | Disabled | Enabled (requires setsebool) |
+| Nginx Config | `/etc/nginx/sites-available/` | `/etc/nginx/conf.d/` |
+| Node.js Repo | deb.nodesource.com | rpm.nodesource.com |
 
-See `nginx.conf` in this directory for the configuration template.
+---
 
-### 8. Setup SSL (Optional)
+## Post-Installation
 
-```bash
-sudo certbot --nginx -d yourdomain.com
-```
-
-## Audio Streaming Setup (Optional)
-
-For live audio streaming to online listeners:
-
-### Install Icecast2
-
-```bash
-sudo apt install -y icecast2
-sudo nano /etc/icecast2/icecast.xml
-# Configure source password, admin password, hostname
-sudo systemctl enable icecast2
-sudo systemctl start icecast2
-```
-
-## Firewall Configuration
-
-```bash
-sudo apt install -y ufw
-sudo ufw allow ssh
-sudo ufw allow 'Nginx Full'
-sudo ufw allow 8000/tcp  # For Icecast streaming
-sudo ufw enable
-```
-
-## Monitoring
+### Management Commands
 
 ```bash
 # View logs
 pm2 logs strudel-ai
 
+# Restart application
+pm2 restart strudel-ai
+
+# Check status
+pm2 status
+
+# Stop application
+pm2 stop strudel-ai
+
 # Monitor resources
 pm2 monit
+```
 
-# Restart application
+### SSL Certificate (Both distros)
+
+```bash
+# Debian
+apt install -y certbot python3-certbot-nginx
+
+# Rocky Linux
+dnf install -y certbot python3-certbot-nginx
+
+# Get certificate (both)
+certbot --nginx -d yourdomain.com
+```
+
+### Update Application
+
+```bash
+cd /opt/strudel-ai
+git pull
+npm install
+npm run build
 pm2 restart strudel-ai
 ```
 
+---
+
 ## Troubleshooting
 
-1. **Application won't start**: Check logs with `pm2 logs strudel-ai`
-2. **Nginx 502 error**: Ensure PM2 is running and check port 5000
-3. **Audio not working**: Web Audio API requires HTTPS in production
+### Rocky Linux SELinux Issues
+
+```bash
+# Allow nginx to connect to network
+setsebool -P httpd_can_network_connect 1
+
+# Check SELinux status
+getenforce
+
+# Temporarily disable (not recommended for production)
+setenforce 0
+```
+
+### Port Already in Use
+
+```bash
+# Find what's using port 5000
+lsof -i :5000
+
+# Kill the process
+kill -9 <PID>
+```
+
+### Nginx Not Starting
+
+```bash
+# Test configuration
+nginx -t
+
+# Check logs - Debian
+tail -f /var/log/nginx/error.log
+
+# Check logs - Rocky
+journalctl -u nginx -f
+```
+
+### Application Won't Start
+
+```bash
+# Check PM2 logs
+pm2 logs strudel-ai --lines 50
+
+# Check if .env file exists
+cat /opt/strudel-ai/.env
+
+# Verify Node.js version
+node --version  # Should be v20.x
+```
+
+---
+
+## Audio Streaming Setup (Optional)
+
+For live audio streaming to online listeners:
+
+### Debian
+
+```bash
+apt install -y icecast2
+nano /etc/icecast2/icecast.xml
+systemctl enable icecast2
+systemctl start icecast2
+ufw allow 8000/tcp
+```
+
+### Rocky Linux
+
+```bash
+dnf install -y icecast
+nano /etc/icecast.xml
+systemctl enable icecast
+systemctl start icecast
+firewall-cmd --permanent --add-port=8000/tcp
+firewall-cmd --reload
+```
