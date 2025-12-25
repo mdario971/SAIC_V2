@@ -5,13 +5,46 @@
 
 set -e
 
-echo "=== SAIC - Rocky Linux 9 Installation ==="
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║         SAIC - Rocky Linux 9 Installation Script           ║"
+echo "╚════════════════════════════════════════════════════════════╝"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo "Please run as root: sudo bash install-rocky.sh"
     exit 1
 fi
+
+echo ""
+echo "=== Configuration ==="
+echo ""
+
+# Prompt for OpenAI API key
+read -p "Enter your OpenAI API key: " OPENAI_KEY
+if [ -z "$OPENAI_KEY" ]; then
+    echo "OpenAI API key is required!"
+    exit 1
+fi
+
+# Prompt for authentication (optional)
+echo ""
+echo "=== Password Protection (Recommended) ==="
+echo "Leave blank to skip (app will be publicly accessible)"
+echo ""
+read -p "Enter admin username: " AUTH_USER
+if [ -n "$AUTH_USER" ]; then
+    read -s -p "Enter admin password: " AUTH_PASS
+    echo ""
+    if [ -z "$AUTH_PASS" ]; then
+        echo "Password cannot be empty if username is set!"
+        exit 1
+    fi
+    echo "Password protection: ENABLED"
+else
+    echo "Password protection: DISABLED (public access)"
+fi
+
+echo ""
 
 # 1. Update system
 echo "[1/8] Updating system..."
@@ -33,6 +66,9 @@ npm install -g pm2
 # 5. Clone repo
 echo "[5/8] Cloning repository..."
 cd /opt
+if [ -d "SAIC" ]; then
+    rm -rf SAIC
+fi
 git clone https://github.com/mdario971/SAIC.git
 cd SAIC
 
@@ -41,14 +77,19 @@ echo "[6/8] Installing dependencies and building..."
 npm install
 npm run build
 
-# 7. Create .env file
+# 7. Create .env file with all credentials
 echo "[7/8] Setting up environment..."
-echo ""
-echo "IMPORTANT: Create your .env file with your OpenAI API key:"
-echo "  echo 'OPENAI_API_KEY=your-key-here' > /opt/SAIC/.env"
-echo "  chmod 600 /opt/SAIC/.env"
-echo ""
-touch .env
+cat > .env << EOF
+OPENAI_API_KEY=$OPENAI_KEY
+EOF
+
+if [ -n "$AUTH_USER" ]; then
+    cat >> .env << EOF
+AUTH_USER=$AUTH_USER
+AUTH_PASS=$AUTH_PASS
+EOF
+fi
+
 chmod 600 .env
 
 # 8. Configure Nginx
@@ -85,14 +126,29 @@ firewall-cmd --permanent --add-service=https
 firewall-cmd --permanent --add-service=ssh
 firewall-cmd --reload
 
+# Start with PM2
+pm2 start npm --name "saic" -- start
+pm2 save
+pm2 startup
+
 echo ""
-echo "=== INSTALLATION COMPLETE ==="
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║              INSTALLATION COMPLETE!                        ║"
+echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
-echo "NEXT STEP - Add your OpenAI API key:"
-echo "  echo 'OPENAI_API_KEY=sk-your-key' > /opt/SAIC/.env"
+echo "Your app is live at: http://$(hostname -I | awk '{print $1}')"
 echo ""
-echo "Then start the app:"
-echo "  cd /opt/SAIC && pm2 start npm --name saic -- start"
-echo "  pm2 save && pm2 startup"
+if [ -n "$AUTH_USER" ]; then
+    echo "Login credentials:"
+    echo "  Username: $AUTH_USER"
+    echo "  Password: (as configured)"
+fi
 echo ""
-echo "Your app will be at: http://$(hostname -I | awk '{print $1}')"
+echo "Commands:"
+echo "  pm2 logs saic    - View logs"
+echo "  pm2 restart saic - Restart app"
+echo "  pm2 status       - Check status"
+echo ""
+echo "IMPORTANT: Install SSL for security!"
+echo "  dnf install certbot python3-certbot-nginx"
+echo "  certbot --nginx -d yourdomain.com"
