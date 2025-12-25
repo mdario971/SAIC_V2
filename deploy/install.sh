@@ -746,8 +746,20 @@ fi
 
 start_pm2
 
-# Get IP
+# Get IP and domain
 SERVER_IP=$(hostname -I | awk '{print $1}')
+SERVER_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+SERVER_DOMAIN=""
+
+# Try to detect domain from reverse DNS
+if command -v dig &> /dev/null; then
+    SERVER_DOMAIN=$(dig +short -x "$SERVER_IP" 2>/dev/null | sed 's/\.$//')
+fi
+
+# Fallback to hostname if it looks like a domain
+if [ -z "$SERVER_DOMAIN" ] && [[ "$SERVER_HOSTNAME" == *.* ]]; then
+    SERVER_DOMAIN="$SERVER_HOSTNAME"
+fi
 
 echo ""
 echo -e "${GREEN}"
@@ -756,24 +768,142 @@ echo "║              INSTALLATION COMPLETE!                        ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 echo ""
-echo -e "Your SAIC app is running at: ${CYAN}http://$SERVER_IP${NC}"
+echo -e "${CYAN}=== Server Info ===${NC}"
+echo -e "  IP Address:   ${GREEN}$SERVER_IP${NC}"
+echo -e "  Hostname:     ${GREEN}$SERVER_HOSTNAME${NC}"
+if [ -n "$SERVER_DOMAIN" ]; then
+    echo -e "  Domain:       ${GREEN}$SERVER_DOMAIN${NC}"
+fi
+echo -e "  App URL:      ${GREEN}http://$SERVER_IP${NC}"
 echo ""
+
 if [ -n "$AUTH_USER" ]; then
-    echo -e "Login credentials:"
-    echo -e "  Username: ${GREEN}$AUTH_USER${NC}"
-    echo -e "  Password: ${GREEN}********${NC}"
+    echo -e "${CYAN}=== Login Credentials ===${NC}"
+    echo -e "  Username:     ${GREEN}$AUTH_USER${NC}"
+    echo -e "  Password:     ${GREEN}********${NC}"
     echo ""
 fi
-echo "Useful commands:"
-echo -e "  ${CYAN}pm2 logs saic${NC}    - View logs"
-echo -e "  ${CYAN}pm2 restart saic${NC} - Restart app"
-echo -e "  ${CYAN}pm2 status${NC}       - Check status"
+
+echo -e "${CYAN}=== Useful Commands ===${NC}"
+echo -e "  ${YELLOW}pm2 logs saic${NC}       - View application logs"
+echo -e "  ${YELLOW}pm2 restart saic${NC}    - Restart application"
+echo -e "  ${YELLOW}pm2 stop saic${NC}       - Stop application"
+echo -e "  ${YELLOW}pm2 status${NC}          - Check all processes"
+echo -e "  ${YELLOW}pm2 monit${NC}           - Real-time monitoring"
+echo -e "  ${YELLOW}saic-ssl${NC}            - Setup SSL certificate (run later)"
 echo ""
-echo -e "${YELLOW}IMPORTANT: Install SSL for security!${NC}"
-if [ "$DETECTED_OS" == "debian" ]; then
-    echo "  apt install certbot python3-certbot-nginx"
+
+# Create SSL setup script for later use
+cat > /usr/local/bin/saic-ssl << 'SSLEOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}=== SAIC SSL Certificate Setup ===${NC}"
+echo ""
+
+# Detect OS
+if [ -f /etc/debian_version ]; then
+    OS_TYPE="debian"
+elif [ -f /etc/redhat-release ]; then
+    OS_TYPE="rocky"
 else
-    echo "  dnf install certbot python3-certbot-nginx"
+    echo -e "${RED}Unsupported OS${NC}"
+    exit 1
 fi
-echo "  certbot --nginx -d yourdomain.com"
+
+# Get domain
+SERVER_IP=$(hostname -I | awk '{print $1}')
+DETECTED_DOMAIN=$(dig +short -x "$SERVER_IP" 2>/dev/null | sed 's/\.$//')
+if [ -z "$DETECTED_DOMAIN" ]; then
+    DETECTED_DOMAIN=$(hostname -f 2>/dev/null)
+fi
+
+echo -e "Detected domain: ${GREEN}${DETECTED_DOMAIN:-'none'}${NC}"
+echo ""
+read -p "Enter domain for SSL certificate [$DETECTED_DOMAIN]: " USER_DOMAIN </dev/tty
+DOMAIN=${USER_DOMAIN:-$DETECTED_DOMAIN}
+
+if [ -z "$DOMAIN" ]; then
+    echo -e "${RED}Domain is required for SSL!${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "Installing certbot..."
+if [ "$OS_TYPE" == "debian" ]; then
+    apt install -y certbot python3-certbot-nginx
+else
+    dnf install -y certbot python3-certbot-nginx
+fi
+
+echo ""
+echo -e "Requesting SSL certificate for: ${GREEN}$DOMAIN${NC}"
+certbot --nginx -d "$DOMAIN"
+
+echo ""
+echo -e "${GREEN}SSL setup complete!${NC}"
+echo -e "Your app is now available at: ${CYAN}https://$DOMAIN${NC}"
+SSLEOF
+chmod +x /usr/local/bin/saic-ssl
+
+# Ask about SSL setup
+echo -e "${CYAN}=== SSL Certificate Setup ===${NC}"
+echo ""
+echo -e "${YELLOW}HTTPS is recommended for security.${NC}"
+echo ""
+
+if [ -n "$SERVER_DOMAIN" ]; then
+    echo -e "Detected domain: ${GREEN}$SERVER_DOMAIN${NC}"
+    read -p "Setup SSL certificate now for $SERVER_DOMAIN? (y/N): " SETUP_SSL </dev/tty
+else
+    echo -e "${YELLOW}No domain detected. You'll need a domain name for SSL.${NC}"
+    read -p "Setup SSL certificate now? (y/N): " SETUP_SSL </dev/tty
+fi
+
+if [[ "$SETUP_SSL" =~ ^[Yy]$ ]]; then
+    echo ""
+    
+    if [ -n "$SERVER_DOMAIN" ]; then
+        read -p "Use detected domain '$SERVER_DOMAIN'? (Y/n): " USE_DETECTED_DOMAIN </dev/tty
+        if [[ "$USE_DETECTED_DOMAIN" =~ ^[Nn]$ ]]; then
+            read -p "Enter your domain: " SSL_DOMAIN </dev/tty
+        else
+            SSL_DOMAIN="$SERVER_DOMAIN"
+        fi
+    else
+        read -p "Enter your domain: " SSL_DOMAIN </dev/tty
+    fi
+    
+    if [ -n "$SSL_DOMAIN" ]; then
+        echo ""
+        echo -e "${BLUE}Installing certbot...${NC}"
+        if [ "$DETECTED_OS" == "debian" ]; then
+            apt install -y certbot python3-certbot-nginx
+        else
+            dnf install -y certbot python3-certbot-nginx
+        fi
+        
+        echo ""
+        echo -e "${BLUE}Requesting SSL certificate...${NC}"
+        certbot --nginx -d "$SSL_DOMAIN"
+        
+        echo ""
+        echo -e "${GREEN}SSL setup complete!${NC}"
+        echo -e "Your app is now available at: ${CYAN}https://$SSL_DOMAIN${NC}"
+    else
+        echo -e "${YELLOW}Skipped - no domain provided.${NC}"
+        echo -e "Run ${CYAN}saic-ssl${NC} later to setup SSL."
+    fi
+else
+    echo ""
+    echo -e "${YELLOW}Skipped SSL setup.${NC}"
+    echo -e "Run ${CYAN}saic-ssl${NC} anytime to setup SSL certificate."
+fi
+
+echo ""
+echo -e "${GREEN}Installation finished!${NC}"
 echo ""
