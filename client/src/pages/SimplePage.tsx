@@ -11,8 +11,9 @@ import { useStrudelAudio } from "@/hooks/useStrudelAudio";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, BookOpen, AlertCircle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const DEFAULT_CODE = `// Welcome to Strudel AI!
 // Type a prompt above or use Quick Insert buttons
@@ -26,6 +27,7 @@ export default function SimplePage() {
   const [code, setCode] = useLocalStorage("strudel-code", DEFAULT_CODE);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [showTutorial, setShowTutorial] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const { toast } = useToast();
   
   const audio = useStrudelAudio();
@@ -38,16 +40,21 @@ export default function SimplePage() {
     onSuccess: (data) => {
       if (data.code) {
         setCode(data.code);
+        setApiError(null);
         toast({
           title: "Code Generated",
           description: "Your music code is ready! Press play to hear it.",
         });
+      } else if (data.error) {
+        setApiError(data.error);
       }
     },
     onError: (error: Error) => {
+      const errorMsg = error.message || "Failed to generate code. Please try again.";
+      setApiError(errorMsg);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate code. Please try again.",
+        description: errorMsg,
         variant: "destructive",
       });
     },
@@ -88,6 +95,24 @@ export default function SimplePage() {
             onSubmit={handlePromptSubmit}
             isLoading={generateMutation.isPending}
           />
+
+          {(apiError || audio.error) && (
+            <Alert variant="destructive" className="relative">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="pr-8">
+                {apiError || audio.error}
+              </AlertDescription>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1 h-6 w-6"
+                onClick={() => setApiError(null)}
+                data-testid="button-dismiss-error"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Alert>
+          )}
 
           <QuickInsertToolbar
             onInsert={handleInsertPattern}
