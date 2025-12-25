@@ -14,6 +14,17 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Check if being piped - if so, save script and re-run interactively
+if [ ! -t 0 ]; then
+    echo -e "${YELLOW}Downloading installer...${NC}"
+    SCRIPT_PATH="/tmp/saic-install.sh"
+    # Re-download the script to a file
+    curl -fsSL https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh -o "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
+    echo -e "${GREEN}Starting interactive installer...${NC}"
+    exec bash "$SCRIPT_PATH"
+fi
+
 clear
 echo -e "${PURPLE}"
 echo "╔════════════════════════════════════════════════════════════╗"
