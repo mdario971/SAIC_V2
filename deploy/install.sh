@@ -14,23 +14,6 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Ensure we can read from terminal even when piped
-if [ -t 0 ]; then
-    # Already running interactively
-    TTY_INPUT=""
-else
-    # Running from pipe, redirect to tty
-    if [ -e /dev/tty ]; then
-        exec 0</dev/tty
-        TTY_INPUT=""
-    else
-        echo -e "${RED}Error: Cannot read from terminal. Please download and run the script:${NC}"
-        echo "  curl -O https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh"
-        echo "  sudo bash install.sh"
-        exit 1
-    fi
-fi
-
 clear
 echo -e "${PURPLE}"
 echo "╔════════════════════════════════════════════════════════════╗"
@@ -84,7 +67,7 @@ fi
 
 if [ -n "$DETECTED_OS" ]; then
     echo ""
-    read -p "Use detected OS? (Y/n): " USE_DETECTED
+    read -p "Use detected OS? (Y/n): " USE_DETECTED </dev/tty
     if [[ "$USE_DETECTED" =~ ^[Nn]$ ]]; then
         DETECTED_OS=""
     fi
@@ -96,7 +79,7 @@ if [ -z "$DETECTED_OS" ]; then
     echo -e "  ${CYAN}1)${NC} Debian / Ubuntu"
     echo -e "  ${CYAN}2)${NC} Rocky Linux / RHEL / AlmaLinux / CentOS"
     echo ""
-    read -p "Enter choice (1 or 2): " OS_CHOICE
+    read -p "Enter choice (1 or 2): " OS_CHOICE </dev/tty
     case $OS_CHOICE in
         1) DETECTED_OS="debian" ;;
         2) DETECTED_OS="rocky" ;;
@@ -112,7 +95,7 @@ echo -e "${CYAN}=== Step 2: OpenAI API Key (Required) ===${NC}"
 echo ""
 echo "Get your API key at: https://platform.openai.com/api-keys"
 echo ""
-read -p "Enter your OpenAI API key: " OPENAI_KEY
+read -p "Enter your OpenAI API key: " OPENAI_KEY </dev/tty
 if [ -z "$OPENAI_KEY" ]; then
     echo -e "${RED}OpenAI API key is required!${NC}"
     exit 1
@@ -124,10 +107,10 @@ echo ""
 echo "Protect your app with HTTP Basic Authentication."
 echo -e "${YELLOW}Leave blank to skip (app will be publicly accessible)${NC}"
 echo ""
-read -p "Admin username: " AUTH_USER
+read -p "Admin username: " AUTH_USER </dev/tty
 
 if [ -n "$AUTH_USER" ]; then
-    read -s -p "Admin password: " AUTH_PASS
+    read -s -p "Admin password: " AUTH_PASS </dev/tty
     echo ""
     if [ -z "$AUTH_PASS" ]; then
         echo -e "${RED}Password cannot be empty if username is set!${NC}"
@@ -142,7 +125,7 @@ echo ""
 echo -e "${CYAN}=== Step 4: Application Port ===${NC}"
 echo ""
 echo "Default port is 5000 (recommended)"
-read -p "Application port [5000]: " APP_PORT
+read -p "Application port [5000]: " APP_PORT </dev/tty
 APP_PORT=${APP_PORT:-5000}
 
 echo ""
@@ -152,7 +135,7 @@ echo "Choose how to install:"
 echo -e "  ${CYAN}1)${NC} Quick Install (git clone from GitHub) - Recommended"
 echo -e "  ${CYAN}2)${NC} Full Install (embedded code, no git required)"
 echo ""
-read -p "Enter choice (1 or 2) [1]: " INSTALL_METHOD
+read -p "Enter choice (1 or 2) [1]: " INSTALL_METHOD </dev/tty
 INSTALL_METHOD=${INSTALL_METHOD:-1}
 
 echo ""
@@ -169,7 +152,7 @@ fi
 echo -e "  Port:         ${GREEN}$APP_PORT${NC}"
 echo -e "  Method:       ${GREEN}$([ "$INSTALL_METHOD" == "1" ] && echo "Git Clone" || echo "Embedded")${NC}"
 echo ""
-read -p "Proceed with installation? (Y/n): " CONFIRM
+read -p "Proceed with installation? (Y/n): " CONFIRM </dev/tty
 if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
     echo "Installation cancelled."
     exit 0
