@@ -1,0 +1,30 @@
+[Unit]
+Description=Strudel AI - Live Coding Music Generator
+Documentation=https://github.com/your-repo/strudel-ai
+After=network.target
+
+[Service]
+Type=simple
+User=strudel
+Group=strudel
+WorkingDirectory=/opt/strudel-ai
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=5000
+EnvironmentFile=/opt/strudel-ai/.env
+
+# Logging
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=strudel-ai
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
