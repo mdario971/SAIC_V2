@@ -822,7 +822,27 @@ EOF
 
 start_pm2() {
     echo -e "${BLUE}[8/8] Starting application with PM2...${NC}"
-    pm2 start npm --name "saic" -- start
+    
+    # Create PM2 ecosystem file to load environment variables
+    cat > ecosystem.config.cjs << PMEOF
+module.exports = {
+  apps: [{
+    name: 'saic',
+    script: 'npm',
+    args: 'start',
+    cwd: '/opt/SAIC',
+    env: {
+      NODE_ENV: 'production',
+      OPENAI_API_KEY: '${OPENAI_KEY}',
+      PORT: '${APP_PORT}',
+      AUTH_USER: '${AUTH_USER:-}',
+      AUTH_PASS: '${AUTH_PASS:-}'
+    }
+  }]
+};
+PMEOF
+    
+    pm2 start ecosystem.config.cjs
     pm2 save
     pm2 startup
 }
