@@ -47,6 +47,118 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# =============================================
+# Check for existing installation
+# =============================================
+echo ""
+echo -e "${CYAN}=== Checking for Existing Installation ===${NC}"
+echo ""
+
+FOUND_EXISTING=false
+EXISTING_ITEMS=""
+
+# Check for SAIC directory
+if [ -d "/opt/SAIC" ]; then
+    FOUND_EXISTING=true
+    EXISTING_ITEMS="${EXISTING_ITEMS}\n  - /opt/SAIC (application directory)"
+fi
+
+# Check for PM2 process
+if command -v pm2 &> /dev/null; then
+    if pm2 list 2>/dev/null | grep -q "saic"; then
+        FOUND_EXISTING=true
+        EXISTING_ITEMS="${EXISTING_ITEMS}\n  - PM2 process 'saic'"
+    fi
+fi
+
+# Check for nginx config
+if [ -f "/etc/nginx/sites-available/saic" ] || [ -f "/etc/nginx/conf.d/saic.conf" ]; then
+    FOUND_EXISTING=true
+    EXISTING_ITEMS="${EXISTING_ITEMS}\n  - Nginx configuration"
+fi
+
+# Check for SSL helper script
+if [ -f "/usr/local/bin/saic-ssl" ]; then
+    FOUND_EXISTING=true
+    EXISTING_ITEMS="${EXISTING_ITEMS}\n  - /usr/local/bin/saic-ssl"
+fi
+
+if [ "$FOUND_EXISTING" = true ]; then
+    echo -e "${YELLOW}Existing SAIC installation detected:${NC}"
+    echo -e "$EXISTING_ITEMS"
+    echo ""
+    read -p "Remove existing installation before continuing? (Y/n): " CLEAN_EXISTING </dev/tty
+    
+    if [[ ! "$CLEAN_EXISTING" =~ ^[Nn]$ ]]; then
+        echo ""
+        echo -e "${BLUE}Cleaning existing installation...${NC}"
+        
+        # Stop and delete PM2 process
+        if command -v pm2 &> /dev/null; then
+            pm2 stop saic 2>/dev/null || true
+            pm2 delete saic 2>/dev/null || true
+            pm2 save 2>/dev/null || true
+        fi
+        
+        # Remove app directory
+        if [ -d "/opt/SAIC" ]; then
+            rm -rf /opt/SAIC
+            echo -e "  Removed /opt/SAIC"
+        fi
+        
+        # Remove nginx configs
+        if [ -f "/etc/nginx/sites-available/saic" ]; then
+            rm -f /etc/nginx/sites-available/saic
+            rm -f /etc/nginx/sites-enabled/saic
+            echo -e "  Removed Nginx config (Debian)"
+        fi
+        if [ -f "/etc/nginx/conf.d/saic.conf" ]; then
+            rm -f /etc/nginx/conf.d/saic.conf
+            echo -e "  Removed Nginx config (Rocky)"
+        fi
+        
+        # Remove SSL helper
+        if [ -f "/usr/local/bin/saic-ssl" ]; then
+            rm -f /usr/local/bin/saic-ssl
+            echo -e "  Removed saic-ssl command"
+        fi
+        
+        # Reload nginx if running
+        if systemctl is-active --quiet nginx; then
+            nginx -t 2>/dev/null && systemctl reload nginx
+        fi
+        
+        echo -e "${GREEN}Cleanup complete!${NC}"
+    else
+        echo -e "${YELLOW}Keeping existing installation. Will overwrite files.${NC}"
+    fi
+else
+    echo -e "${GREEN}No existing installation detected.${NC}"
+    echo ""
+    read -p "Check and clean any leftover files anyway? (y/N): " CLEAN_ANYWAY </dev/tty
+    
+    if [[ "$CLEAN_ANYWAY" =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE}Checking for leftover files...${NC}"
+        
+        # Stop and delete PM2 process if exists
+        if command -v pm2 &> /dev/null; then
+            pm2 stop saic 2>/dev/null || true
+            pm2 delete saic 2>/dev/null || true
+        fi
+        
+        # Remove potential leftovers
+        rm -rf /opt/SAIC 2>/dev/null || true
+        rm -f /etc/nginx/sites-available/saic 2>/dev/null || true
+        rm -f /etc/nginx/sites-enabled/saic 2>/dev/null || true
+        rm -f /etc/nginx/conf.d/saic.conf 2>/dev/null || true
+        rm -f /usr/local/bin/saic-ssl 2>/dev/null || true
+        
+        echo -e "${GREEN}Cleanup complete!${NC}"
+    fi
+fi
+
+echo ""
+
 # Detect OS
 detect_os() {
     if [ -f /etc/os-release ]; then
