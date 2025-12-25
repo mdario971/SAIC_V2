@@ -1,4 +1,4 @@
-# Strudel AI - Deployment Scripts
+# SAIC - Deployment Scripts
 
 Deployment scripts for **Debian 13** and **Rocky Linux 9**.
 
@@ -89,16 +89,16 @@ sudo bash install.sh
 
 ```bash
 # View logs
-pm2 logs strudel-ai
+pm2 logs saic
 
 # Restart application
-pm2 restart strudel-ai
+pm2 restart saic
 
 # Check status
 pm2 status
 
 # Stop application
-pm2 stop strudel-ai
+pm2 stop saic
 
 # Monitor resources
 pm2 monit
@@ -120,11 +120,11 @@ certbot --nginx -d yourdomain.com
 ### Update Application
 
 ```bash
-cd /opt/strudel-ai
+cd /opt/SAIC
 git pull
 npm install
 npm run build
-pm2 restart strudel-ai
+pm2 restart saic
 ```
 
 ---
@@ -171,10 +171,10 @@ journalctl -u nginx -f
 
 ```bash
 # Check PM2 logs
-pm2 logs strudel-ai --lines 50
+pm2 logs saic --lines 50
 
 # Check if .env file exists
-cat /opt/strudel-ai/.env
+cat /opt/SAIC/.env
 
 # Verify Node.js version
 node --version  # Should be v20.x

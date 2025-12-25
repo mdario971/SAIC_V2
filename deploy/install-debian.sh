@@ -43,13 +43,18 @@ echo "[6/8] Installing dependencies and building..."
 npm install
 npm run build
 
-# 7. Set OpenAI API key
-read -p "Enter your OpenAI API key: " OPENAI_KEY
-echo "OPENAI_API_KEY=$OPENAI_KEY" > .env
+# 7. Create .env file
+echo "[7/8] Setting up environment..."
+echo ""
+echo "IMPORTANT: Create your .env file with your OpenAI API key:"
+echo "  echo 'OPENAI_API_KEY=your-key-here' > /opt/SAIC/.env"
+echo "  chmod 600 /opt/SAIC/.env"
+echo ""
+touch .env
 chmod 600 .env
 
 # 8. Configure Nginx
-echo "[7/8] Configuring Nginx..."
+echo "[8/8] Configuring Nginx..."
 cat > /etc/nginx/sites-available/saic << 'EOF'
 server {
     listen 80;
@@ -70,20 +75,18 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
 # Configure firewall
-echo "[8/8] Configuring firewall..."
 ufw allow ssh
 ufw allow 'Nginx Full'
 ufw --force enable
 
-# Start with PM2
-pm2 start npm --name "saic" -- start
-pm2 save
-pm2 startup
-
 echo ""
-echo "=== DONE! ==="
-echo "Your app is live at: http://$(hostname -I | awk '{print $1}')"
+echo "=== INSTALLATION COMPLETE ==="
 echo ""
-echo "Commands:"
-echo "  pm2 logs saic    - View logs"
-echo "  pm2 restart saic - Restart"
+echo "NEXT STEP - Add your OpenAI API key:"
+echo "  echo 'OPENAI_API_KEY=sk-your-key' > /opt/SAIC/.env"
+echo ""
+echo "Then start the app:"
+echo "  cd /opt/SAIC && pm2 start npm --name saic -- start"
+echo "  pm2 save && pm2 startup"
+echo ""
+echo "Your app will be at: http://$(hostname -I | awk '{print $1}')"
