@@ -6,6 +6,14 @@ import { z } from "zod";
 
 const generateRequestSchema = z.object({
   prompt: z.string().min(1).max(500),
+  context: z.object({
+    genre: z.string().optional(),
+    bpm: z.number().optional(),
+    key: z.string().optional(),
+    includeDrums: z.boolean().optional(),
+    includeBass: z.boolean().optional(),
+    includeSynth: z.boolean().optional(),
+  }).optional(),
 });
 
 export async function registerRoutes(
@@ -15,9 +23,9 @@ export async function registerRoutes(
   // AI Code Generation endpoint
   app.post("/api/generate", async (req, res) => {
     try {
-      const { prompt } = generateRequestSchema.parse(req.body);
+      const { prompt, context } = generateRequestSchema.parse(req.body);
       
-      const code = await generateStrudelCode(prompt);
+      const code = await generateStrudelCode(prompt, context);
       
       res.json({ code, success: true });
     } catch (error) {

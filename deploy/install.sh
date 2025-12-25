@@ -298,7 +298,7 @@ install_debian_deps() {
     apt update && apt upgrade -y
     
     echo -e "${BLUE}[2/8] Installing dependencies...${NC}"
-    apt install -y curl git nginx ufw build-essential
+    apt install -y curl git nginx ufw build-essential chromium xvfb
     
     echo -e "${BLUE}[3/8] Installing Node.js 20...${NC}"
     if ! command -v node &> /dev/null; then
@@ -312,7 +312,7 @@ install_rocky_deps() {
     dnf update -y
     
     echo -e "${BLUE}[2/8] Installing dependencies...${NC}"
-    dnf install -y curl git nginx firewalld epel-release
+    dnf install -y curl git nginx firewalld epel-release chromium xorg-x11-server-Xvfb
     
     echo -e "${BLUE}[3/8] Installing Node.js 20...${NC}"
     if ! command -v node &> /dev/null; then

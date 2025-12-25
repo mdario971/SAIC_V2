@@ -72,8 +72,33 @@ note("c2 c2 c3 c2 eb2 c2 g2 c2")
 5. Keep code readable with proper indentation
 6. If the user asks for something abstract, interpret it musically`;
 
-export async function generateStrudelCode(prompt: string): Promise<string> {
+interface GenerationContext {
+  genre?: string;
+  bpm?: number;
+  key?: string;
+  includeDrums?: boolean;
+  includeBass?: boolean;
+  includeSynth?: boolean;
+}
+
+export async function generateStrudelCode(prompt: string, context?: GenerationContext): Promise<string> {
   try {
+    let enhancedPrompt = `Generate Strudel code for: ${prompt}`;
+    
+    if (context) {
+      const contextParts: string[] = [];
+      if (context.genre) contextParts.push(`Genre: ${context.genre}`);
+      if (context.bpm) contextParts.push(`BPM: ${context.bpm} (use setcpm(${context.bpm}) at the start)`);
+      if (context.key) contextParts.push(`Key: ${context.key}`);
+      if (context.includeDrums === false) contextParts.push("No drums");
+      if (context.includeBass === false) contextParts.push("No bass");
+      if (context.includeSynth === false) contextParts.push("No synth/melody");
+      
+      if (contextParts.length > 0) {
+        enhancedPrompt += `\n\nContext: ${contextParts.join(", ")}`;
+      }
+    }
+    
     const response = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [
@@ -83,7 +108,7 @@ export async function generateStrudelCode(prompt: string): Promise<string> {
         },
         {
           role: "user",
-          content: `Generate Strudel code for: ${prompt}`,
+          content: enhancedPrompt,
         },
       ],
       max_completion_tokens: 1024,

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Music2, Headphones, Info } from "lucide-react";
+import { Music2, Headphones, Info, Sparkles } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -54,6 +54,23 @@ export function Header() {
             </Link>
           </TooltipTrigger>
           <TooltipContent>DJ/Producer Mode with dual outputs</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="/pro">
+              <Button
+                variant={location === "/pro" ? "secondary" : "ghost"}
+                size="sm"
+                className="gap-2"
+                data-testid="nav-pro"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Pro Mode</span>
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Full Strudel REPL with AI Assistant</TooltipContent>
         </Tooltip>
       </nav>
 
