@@ -4,12 +4,12 @@ Deploy SAIC (Strudel AI) to your VPS with one command.
 
 ---
 
-## Universal One-Command Installer (Recommended)
+## Universal Installer (Recommended)
 
 Works on **Debian 13+**, **Ubuntu**, **Rocky Linux 9**, **RHEL**, **AlmaLinux**, and **CentOS**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh | sudo bash
+curl -O https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh && sudo bash install.sh
 ```
 
 The installer will interactively ask for:
