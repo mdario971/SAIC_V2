@@ -14,6 +14,9 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Ensure we can read from terminal even when piped
+exec < /dev/tty
+
 clear
 echo -e "${PURPLE}"
 echo "╔════════════════════════════════════════════════════════════╗"
