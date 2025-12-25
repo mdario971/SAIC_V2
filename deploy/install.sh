@@ -15,7 +15,21 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Ensure we can read from terminal even when piped
-exec < /dev/tty
+if [ -t 0 ]; then
+    # Already running interactively
+    TTY_INPUT=""
+else
+    # Running from pipe, redirect to tty
+    if [ -e /dev/tty ]; then
+        exec 0</dev/tty
+        TTY_INPUT=""
+    else
+        echo -e "${RED}Error: Cannot read from terminal. Please download and run the script:${NC}"
+        echo "  curl -O https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh"
+        echo "  sudo bash install.sh"
+        exit 1
+    fi
+fi
 
 clear
 echo -e "${PURPLE}"
