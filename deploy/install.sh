@@ -41,6 +41,34 @@ echo "║                                                            ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
+# =============================================
+# VERSION SELECTION
+# =============================================
+echo ""
+echo -e "${CYAN}=== Select SAIC Version ===${NC}"
+echo ""
+echo "Choose which version to install:"
+echo -e "  ${CYAN}1)${NC} Classic Mode - Original simple interface (main branch)"
+echo -e "  ${CYAN}2)${NC} Pro Mode - New AI-enhanced version with music theory tools (pro-mode branch)"
+echo ""
+read -p "Enter choice (1 or 2) [2]: " VERSION_CHOICE </dev/tty
+VERSION_CHOICE=${VERSION_CHOICE:-2}
+
+case $VERSION_CHOICE in
+    1)
+        GIT_BRANCH="main"
+        echo -e "${GREEN}Selected: Classic Mode (main branch)${NC}"
+        ;;
+    2)
+        GIT_BRANCH="pro-mode"
+        echo -e "${GREEN}Selected: Pro Mode (pro-mode branch)${NC}"
+        ;;
+    *)
+        GIT_BRANCH="pro-mode"
+        echo -e "${YELLOW}Invalid choice, defaulting to Pro Mode${NC}"
+        ;;
+esac
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Error: Please run as root: sudo bash install.sh${NC}"
@@ -270,6 +298,8 @@ INSTALL_METHOD=${INSTALL_METHOD:-1}
 echo ""
 echo -e "${CYAN}=== Configuration Summary ===${NC}"
 echo ""
+echo -e "  Version:      ${GREEN}$([ "$GIT_BRANCH" == "main" ] && echo "Classic Mode" || echo "Pro Mode")${NC}"
+echo -e "  Branch:       ${GREEN}$GIT_BRANCH${NC}"
 echo -e "  OS Type:      ${GREEN}$DETECTED_OS${NC}"
 echo -e "  OpenAI Key:   ${GREEN}sk-****${OPENAI_KEY: -4}${NC}"
 if [ -n "$AUTH_USER" ]; then
@@ -327,13 +357,13 @@ install_pm2() {
 }
 
 clone_repo() {
-    echo -e "${BLUE}[5/8] Cloning repository...${NC}"
+    echo -e "${BLUE}[5/8] Cloning repository (branch: $GIT_BRANCH)...${NC}"
     mkdir -p /opt
     cd /opt
     if [ -d "SAIC" ]; then
         rm -rf SAIC
     fi
-    git clone https://github.com/mdario971/SAIC.git
+    git clone -b "$GIT_BRANCH" https://github.com/mdario971/SAIC.git
     cd SAIC
     
     # Fix package.json to use tsx for production (more reliable)
