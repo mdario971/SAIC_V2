@@ -239,7 +239,7 @@ create_embedded_app() {
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "vite build",
-    "start": "NODE_ENV=production node dist/server/index.js"
+    "start": "NODE_ENV=production tsx server/index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -320,8 +320,8 @@ app.use(express.json());
 const httpServer = createServer(app);
 await registerRoutes(httpServer, app);
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../client")));
-  app.get("*", (req, res) => res.sendFile(path.join(__dirname, "../client/index.html")));
+  app.use(express.static(path.join(__dirname, "../dist/client")));
+  app.get("*", (req, res) => res.sendFile(path.join(__dirname, "../dist/client/index.html")));
 }
 const port = parseInt(process.env.PORT || "5000");
 httpServer.listen(port, "0.0.0.0", () => console.log(`Server running on port ${port}`));
