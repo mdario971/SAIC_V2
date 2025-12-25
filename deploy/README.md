@@ -1,6 +1,25 @@
 # SAIC - Deployment Scripts
 
-Deployment scripts for **Debian 13** and **Rocky Linux 9**.
+Deploy SAIC (Strudel AI) to your VPS with one command.
+
+---
+
+## Universal One-Command Installer (Recommended)
+
+Works on **Debian 13+**, **Ubuntu**, **Rocky Linux 9**, **RHEL**, **AlmaLinux**, and **CentOS**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh | sudo bash
+```
+
+The installer will interactively ask for:
+1. **Operating System** - Auto-detected or manual selection
+2. **OpenAI API Key** - Required for AI generation
+3. **Username/Password** - Optional password protection
+4. **Port** - Default 5000
+5. **Installation Method** - Git clone or embedded code
+
+---
 
 ## Hardware Requirements
 
