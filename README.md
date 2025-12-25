@@ -25,7 +25,7 @@ npm run dev
 SSH into your server and run:
 
 ```bash
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/full-install.sh
 chmod +x install.sh
 sudo bash install.sh
 ```

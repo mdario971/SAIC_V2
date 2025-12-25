@@ -20,7 +20,7 @@ Deployment scripts for **Debian 13** and **Rocky Linux 9**.
 ### Option 1: Quick Install (requires GitHub repo)
 
 ```bash
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/install-debian.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install-debian.sh
 chmod +x install.sh
 sudo bash install.sh
 ```
@@ -28,7 +28,7 @@ sudo bash install.sh
 ### Option 2: Full Install (embedded code, no GitHub needed)
 
 ```bash
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install-debian.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/full-install-debian.sh
 chmod +x install.sh
 sudo bash install.sh
 ```
@@ -48,7 +48,7 @@ sudo bash install.sh
 ### Option 1: Quick Install (requires GitHub repo)
 
 ```bash
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/install-rocky.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install-rocky.sh
 chmod +x install.sh
 sudo bash install.sh
 ```
@@ -56,7 +56,7 @@ sudo bash install.sh
 ### Option 2: Full Install (embedded code, no GitHub needed)
 
 ```bash
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install-rocky.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/full-install-rocky.sh
 chmod +x install.sh
 sudo bash install.sh
 ```

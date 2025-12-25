@@ -1,11 +1,11 @@
 #!/bin/bash
-# Strudel AI - Rocky Linux 9 Quick Installation Script
+# SAIC (Strudel AI) - Rocky Linux 9 Quick Installation Script
 # Uses Git clone method - requires repo to be pushed to GitHub first
 # Run as root: sudo bash install-rocky.sh
 
 set -e
 
-echo "=== Strudel AI - Rocky Linux 9 Installation ==="
+echo "=== SAIC - Rocky Linux 9 Installation ==="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -30,29 +30,34 @@ dnf install -y nodejs
 echo "[4/8] Installing PM2..."
 npm install -g pm2
 
-# 5. Clone repo (REPLACE WITH YOUR GITHUB URL)
+# 5. Clone repo
 echo "[5/8] Cloning repository..."
 cd /opt
-git clone https://github.com/YOUR_USERNAME/strudel-ai.git
-cd strudel-ai
+git clone https://github.com/mdario971/SAIC.git
+cd SAIC
 
 # 6. Install dependencies & build
 echo "[6/8] Installing dependencies and building..."
 npm install
 npm run build
 
-# 7. Set OpenAI API key
-read -p "Enter your OpenAI API key: " OPENAI_KEY
-echo "OPENAI_API_KEY=$OPENAI_KEY" > .env
+# 7. Create .env file
+echo "[7/8] Setting up environment..."
+echo ""
+echo "IMPORTANT: Create your .env file with your OpenAI API key:"
+echo "  echo 'OPENAI_API_KEY=your-key-here' > /opt/SAIC/.env"
+echo "  chmod 600 /opt/SAIC/.env"
+echo ""
+touch .env
 chmod 600 .env
 
 # 8. Configure Nginx
-echo "[7/8] Configuring Nginx..."
+echo "[8/8] Configuring Nginx..."
 
 # SELinux - allow nginx to connect to network
 setsebool -P httpd_can_network_connect 1
 
-cat > /etc/nginx/conf.d/strudel-ai.conf << 'EOF'
+cat > /etc/nginx/conf.d/saic.conf << 'EOF'
 server {
     listen 80;
     server_name _;
@@ -73,7 +78,6 @@ systemctl start nginx
 nginx -t && systemctl reload nginx
 
 # Configure firewalld
-echo "[8/8] Configuring firewall..."
 systemctl enable firewalld
 systemctl start firewalld
 firewall-cmd --permanent --add-service=http
@@ -81,15 +85,14 @@ firewall-cmd --permanent --add-service=https
 firewall-cmd --permanent --add-service=ssh
 firewall-cmd --reload
 
-# Start with PM2
-pm2 start npm --name "strudel-ai" -- start
-pm2 save
-pm2 startup
-
 echo ""
-echo "=== DONE! ==="
-echo "Your app is live at: http://$(hostname -I | awk '{print $1}')"
+echo "=== INSTALLATION COMPLETE ==="
 echo ""
-echo "Commands:"
-echo "  pm2 logs strudel-ai    - View logs"
-echo "  pm2 restart strudel-ai - Restart"
+echo "NEXT STEP - Add your OpenAI API key:"
+echo "  echo 'OPENAI_API_KEY=sk-your-key' > /opt/SAIC/.env"
+echo ""
+echo "Then start the app:"
+echo "  cd /opt/SAIC && pm2 start npm --name saic -- start"
+echo "  pm2 save && pm2 startup"
+echo ""
+echo "Your app will be at: http://$(hostname -I | awk '{print $1}')"

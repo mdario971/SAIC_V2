@@ -14,7 +14,7 @@ SSH into your server and run:
 
 ```bash
 # Download the installer
-curl -o install.sh https://raw.githubusercontent.com/YOUR_USERNAME/strudel-ai/main/deploy/full-install.sh
+curl -o install.sh https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/full-install.sh
 
 # Make executable and run
 chmod +x install.sh
@@ -47,7 +47,7 @@ npm install -g pm2
 ```bash
 # Clone repository
 cd /opt
-git clone https://github.com/YOUR_USERNAME/strudel-ai.git
+git clone https://github.com/mdario971/SAIC.git
 cd strudel-ai
 
 # Install dependencies
