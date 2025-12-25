@@ -1,0 +1,113 @@
+  | }
+0|saic  | Node.js v20.19.6
+cd /opt/SAIC
+pm2 logs saic --lines 50
+^C
+[root@localhost SAIC]# c
+-bash: c: command not found
+[root@localhost SAIC]# cd ..
+[root@localhost opt]# cd /opt/SAIC
+pm2 logs saic --lines 50
+[TAILING] Tailing last 50 lines for [saic] process (change the value with --lines option)
+/root/.pm2/logs/saic-out.log last 50 lines:
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+0|saic     |
+0|saic     | > saic@1.0.0 start
+0|saic     | > NODE_ENV=production node dist/server/index.js
+0|saic     |
+/root/.pm2/logs/saic-error.log last 50 lines:
+0|saic     |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|saic     |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|saic     |     at node:internal/main/run_main_module:28:49 {
+0|saic     |   code: 'MODULE_NOT_FOUND',
+0|saic     |   requireStack: []
+0|saic     | }
+0|saic     |
+0|saic     | Node.js v20.19.6
+0|saic     | node:internal/modules/cjs/loader:1210
+0|saic     |   throw err;
+0|saic     |   ^
+0|saic     |
+0|saic     | Error: Cannot find module '/opt/SAIC/dist/server/index.js'
+0|saic     |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|saic     |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|saic     |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|saic     |     at node:internal/main/run_main_module:28:49 {
+0|saic     |   code: 'MODULE_NOT_FOUND',
+0|saic     |   requireStack: []
+0|saic     | }
+0|saic     |
+0|saic     | Node.js v20.19.6
+0|saic     | node:internal/modules/cjs/loader:1210
+0|saic     |   throw err;
+0|saic     |   ^
+0|saic     |
+0|saic     | Error: Cannot find module '/opt/SAIC/dist/server/index.js'
+0|saic     |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|saic     |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|saic     |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|saic     |     at node:internal/main/run_main_module:28:49 {
+0|saic     |   code: 'MODULE_NOT_FOUND',
+0|saic     |   requireStack: []
+0|saic     | }
+0|saic     |
+0|saic     | Node.js v20.19.6
+0|saic     | node:internal/modules/cjs/loader:1210
+0|saic     |   throw err;
+0|saic     |   ^
+0|saic     |
+0|saic     | Error: Cannot find module '/opt/SAIC/dist/server/index.js'
+0|saic     |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|saic     |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|saic     |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|saic     |     at node:internal/main/run_main_module:28:49 {
+0|saic     |   code: 'MODULE_NOT_FOUND',
+0|saic     |   requireStack: []
+0|saic     | }
+0|saic     |
+0|saic     | Node.js v20.19.6
