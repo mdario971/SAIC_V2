@@ -127,6 +127,12 @@ if [ -n "$AUTH_USER" ]; then
         echo -e "${RED}Password cannot be empty if username is set!${NC}"
         exit 1
     fi
+    read -s -p "Confirm password: " AUTH_PASS_CONFIRM </dev/tty
+    echo ""
+    if [ "$AUTH_PASS" != "$AUTH_PASS_CONFIRM" ]; then
+        echo -e "${RED}Passwords do not match!${NC}"
+        exit 1
+    fi
     echo -e "${GREEN}Password protection: ENABLED${NC}"
 else
     echo -e "${YELLOW}Password protection: DISABLED (public access)${NC}"
