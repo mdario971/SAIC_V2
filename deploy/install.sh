@@ -927,7 +927,8 @@ echo -e "  ${YELLOW}pm2 restart saic${NC}    - Restart application"
 echo -e "  ${YELLOW}pm2 stop saic${NC}       - Stop application"
 echo -e "  ${YELLOW}pm2 status${NC}          - Check all processes"
 echo -e "  ${YELLOW}pm2 monit${NC}           - Real-time monitoring"
-echo -e "  ${YELLOW}saic-ssl${NC}            - Setup SSL certificate (run later)"
+echo -e "  ${YELLOW}saic-passwd${NC}         - Change/reset password protection"
+echo -e "  ${YELLOW}saic-ssl${NC}            - Setup SSL certificate"
 echo ""
 
 # Create SSL setup script for later use
@@ -986,6 +987,95 @@ echo -e "${GREEN}SSL setup complete!${NC}"
 echo -e "Your app is now available at: ${CYAN}https://$DOMAIN${NC}"
 SSLEOF
 chmod +x /usr/local/bin/saic-ssl
+
+# Create password management script
+cat > /usr/local/bin/saic-passwd << 'PWEOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ENV_FILE="/opt/SAIC/.env"
+
+echo -e "${CYAN}=== SAIC Password Management ===${NC}"
+echo ""
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo -e "${RED}Error: SAIC not found at /opt/SAIC${NC}"
+    exit 1
+fi
+
+# Check current status
+if grep -q "AUTH_USER" "$ENV_FILE" 2>/dev/null; then
+    CURRENT_USER=$(grep "AUTH_USER=" "$ENV_FILE" | cut -d'=' -f2)
+    echo -e "Status: ${GREEN}Password protection ENABLED${NC}"
+    echo -e "Current username: ${CYAN}$CURRENT_USER${NC}"
+else
+    echo -e "Status: ${YELLOW}Password protection DISABLED${NC}"
+fi
+
+echo ""
+echo "Options:"
+echo "  1) Set/Change password"
+echo "  2) Remove password protection"
+echo "  3) Cancel"
+echo ""
+read -p "Choose option [1-3]: " CHOICE </dev/tty
+
+case $CHOICE in
+    1)
+        echo ""
+        read -p "Enter username: " NEW_USER </dev/tty
+        read -s -p "Enter password: " NEW_PASS </dev/tty
+        echo ""
+        read -s -p "Confirm password: " CONFIRM_PASS </dev/tty
+        echo ""
+        
+        if [ "$NEW_PASS" != "$CONFIRM_PASS" ]; then
+            echo -e "${RED}Passwords do not match!${NC}"
+            exit 1
+        fi
+        
+        if [ -z "$NEW_USER" ] || [ -z "$NEW_PASS" ]; then
+            echo -e "${RED}Username and password cannot be empty!${NC}"
+            exit 1
+        fi
+        
+        # Remove existing auth lines
+        sed -i '/AUTH_USER/d' "$ENV_FILE"
+        sed -i '/AUTH_PASS/d' "$ENV_FILE"
+        
+        # Add new credentials
+        echo "AUTH_USER=$NEW_USER" >> "$ENV_FILE"
+        echo "AUTH_PASS=$NEW_PASS" >> "$ENV_FILE"
+        
+        echo ""
+        echo -e "${GREEN}Password updated! Restarting app...${NC}"
+        pm2 restart saic
+        echo -e "${GREEN}Done!${NC}"
+        ;;
+    2)
+        echo ""
+        read -p "Are you sure you want to remove password protection? (y/N): " CONFIRM </dev/tty
+        if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+            sed -i '/AUTH_USER/d' "$ENV_FILE"
+            sed -i '/AUTH_PASS/d' "$ENV_FILE"
+            echo ""
+            echo -e "${GREEN}Password protection removed! Restarting app...${NC}"
+            pm2 restart saic
+            echo -e "${GREEN}Done!${NC}"
+        else
+            echo "Cancelled."
+        fi
+        ;;
+    *)
+        echo "Cancelled."
+        ;;
+esac
+PWEOF
+chmod +x /usr/local/bin/saic-passwd
 
 # Ask about SSL setup
 echo -e "${CYAN}=== SSL Certificate Setup ===${NC}"
