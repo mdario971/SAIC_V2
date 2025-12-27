@@ -74,7 +74,17 @@ A mobile-optimized web application that combines Strudel (a live coding music en
 
 ## Environment Variables
 
-- `OPENAI_API_KEY` - Required for AI code generation
+- `OPENAI_API_KEY` - Optional for AI code generation (app starts without it)
+
+## Security & Network Configuration
+
+- **Production mode**: Express binds to `127.0.0.1` (localhost only) for security
+- **Development mode**: Express binds to `0.0.0.0` for Replit compatibility
+- **Lazy API client**: OpenAI client only initializes when API endpoint is called
+- **Firewall ports**:
+  - External: 22 (SSH), 80 (HTTP), 443 (HTTPS)
+  - External (Guacamole mode only): 8080
+  - Internal only: 5000 (Node.js), 4822 (guacd)
 
 ## Development
 
