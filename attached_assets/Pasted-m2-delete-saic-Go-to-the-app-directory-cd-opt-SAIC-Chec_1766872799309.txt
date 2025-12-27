@@ -1,0 +1,52 @@
+m2 delete saic
+# Go to the app directory
+cd /opt/SAIC
+# Check if the directory exists and has files
+ls -la
+# Restart PM2 from the correct directory
+pm2 start npm --name "saic" -- start
+# Save PM2 config
+pm2 save
+[PM2] Applying action deleteProcessId on app [saic](ids: [ 0 ])
+[PM2] [saic](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+total 436
+drwxr-xr-x  12 root root   4096 Dec 27 21:55 .
+drwxr-xr-x   4 root root   4096 Dec 27 21:55 ..
+-rw-------   1 root root     64 Dec 27 21:55 .env
+drwxr-xr-x   8 root root   4096 Dec 27 21:55 .git
+-rw-r--r--   1 root root    174 Dec 27 21:55 .gitignore
+-rw-r--r--   1 root root    784 Dec 27 21:55 .replit
+-rw-r--r--   1 root root   2954 Dec 27 21:55 README.md
+drwxr-xr-x   2 root root   4096 Dec 27 21:55 attached_assets
+drwxr-xr-x   4 root root   4096 Dec 27 21:55 client
+-rw-r--r--   1 root root    459 Dec 27 21:55 components.json
+drwxr-xr-x   3 root root   4096 Dec 27 21:55 deploy
+-rw-r--r--   1 root root   6618 Dec 27 21:55 design_guidelines.md
+drwxr-xr-x   3 root root   4096 Dec 27 21:55 dist
+drwxr-xr-x   2 root root   4096 Dec 27 21:55 docs
+-rw-r--r--   1 root root    325 Dec 27 21:55 drizzle.config.ts
+-rw-r--r--   1 root root    266 Dec 27 21:55 ecosystem.config.cjs
+drwxr-xr-x 337 root root  12288 Dec 27 21:55 node_modules
+-rw-r--r--   1 root root 316022 Dec 27 21:55 package-lock.json
+-rw-r--r--   1 root root   3688 Dec 27 21:55 package.json
+-rw-r--r--   1 root root     80 Dec 27 21:55 postcss.config.js
+-rw-r--r--   1 root root   7128 Dec 27 21:55 replit.md
+drwxr-xr-x   2 root root   4096 Dec 27 21:55 script
+drwxr-xr-x   3 root root   4096 Dec 27 21:55 server
+drwxr-xr-x   2 root root   4096 Dec 27 21:55 shared
+-rw-r--r--   1 root root   4548 Dec 27 21:55 tailwind.config.ts
+-rw-r--r--   1 root root    657 Dec 27 21:55 tsconfig.json
+-rw-r--r--   1 root root   1080 Dec 27 21:55 vite.config.ts
+[PM2] Starting /usr/bin/npm in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ saic               │ fork     │ 0    │ online    │ 0%       │ 21.7mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /home/debian/.pm2/dump.pm2
+debian@vps-e1d360fd:/opt/SAIC$

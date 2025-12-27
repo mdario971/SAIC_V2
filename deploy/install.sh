@@ -48,11 +48,17 @@ echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║                         INSTALLATION OPTIONS                                  ║${NC}"
 echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${CYAN}║  OPTION           │ STACK              │ PORTS        │ API KEY REQUIRED     ║${NC}"
+echo -e "${CYAN}║  OPTION           │ STACK              │ EXTERNAL     │ API KEY REQUIRED     ║${NC}"
 echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${CYAN}║${NC}  1) SAIC Classic  ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 80, 5000     ${CYAN}│${NC} ${GREEN}OpenAI${NC}               ${CYAN}║${NC}"
-echo -e "${CYAN}║${NC}  2) SAIC Pro      ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 80, 5000     ${CYAN}│${NC} ${GREEN}OpenAI${NC}               ${CYAN}║${NC}"
-echo -e "${CYAN}║${NC}  3) Remote + AI   ${CYAN}│${NC} Tomcat + MariaDB   ${CYAN}│${NC} 80, 8080     ${CYAN}│${NC} ${GREEN}FREE (MCP)${NC}           ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  1) SAIC Classic  ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 22,80,443    ${CYAN}│${NC} ${YELLOW}Optional${NC}             ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  2) SAIC Pro      ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 22,80,443    ${CYAN}│${NC} ${YELLOW}Optional${NC}             ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  3) Remote + AI   ${CYAN}│${NC} Tomcat + MariaDB   ${CYAN}│${NC} 22,80,443,8080${CYAN}│${NC} ${GREEN}FREE (MCP)${NC}           ${CYAN}║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║${NC}  ${YELLOW}NETWORK & FIREWALL:${NC}                                                          ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ External ports: 22 (SSH), 80 (HTTP), 443 (HTTPS)                          ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ Internal only:  5000 (Node.js), 4822 (guacd) - NOT exposed                ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ Option 3 adds:  8080 (Guacamole web interface)                            ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  └─ Firewall:       UFW (Debian) / firewalld (Rocky) auto-configured          ${CYAN}║${NC}"
 echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
 echo -e "${CYAN}║${NC}  ${YELLOW}COMPONENTS INSTALLED:${NC}                                                       ${CYAN}║${NC}"
 echo -e "${CYAN}║${NC}  ├─ All Options: Nginx, UFW/firewalld, fail2ban, certbot                     ${CYAN}║${NC}"
@@ -962,6 +968,13 @@ EOF
     
     ufw allow ssh
     ufw allow 'Nginx Full'
+    
+    # Open port 8080 for Guacamole if installing Remote+MCP mode
+    if [ "$INSTALL_GUACAMOLE" = true ]; then
+        ufw allow 8080/tcp
+        echo -e "${GREEN}  Opened port 8080 for Guacamole${NC}"
+    fi
+    
     ufw --force enable
 }
 
@@ -992,6 +1005,13 @@ EOF
     firewall-cmd --permanent --add-service=http
     firewall-cmd --permanent --add-service=https
     firewall-cmd --permanent --add-service=ssh
+    
+    # Open port 8080 for Guacamole if installing Remote+MCP mode
+    if [ "$INSTALL_GUACAMOLE" = true ]; then
+        firewall-cmd --permanent --add-port=8080/tcp
+        echo -e "${GREEN}  Opened port 8080 for Guacamole${NC}"
+    fi
+    
     firewall-cmd --reload
 }
 
