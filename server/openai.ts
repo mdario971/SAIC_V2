@@ -3,7 +3,11 @@ import OpenAI from "openai";
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const DEFAULT_MODEL = "gpt-5";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Make OpenAI client optional - app should start without API key
+let openai: OpenAI | null = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 const STRUDEL_SYSTEM_PROMPT = `You are an expert Strudel live coding assistant. Strudel is a JavaScript-based music live coding environment that runs in the browser, based on TidalCycles.
 
@@ -82,6 +86,10 @@ interface GenerationContext {
 }
 
 export async function generateStrudelCode(prompt: string, context?: GenerationContext): Promise<string> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.");
+  }
+  
   try {
     let enhancedPrompt = `Generate Strudel code for: ${prompt}`;
     
