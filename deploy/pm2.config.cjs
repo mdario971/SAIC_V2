@@ -3,12 +3,14 @@ module.exports = {
     name: 'saic',
     script: 'npm',
     args: 'run start',
+    cwd: '/opt/SAIC',
     env: {
       NODE_ENV: 'production',
-      PORT: 80
+      PORT: 5000
     },
     env_production: {
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      PORT: 5000
     }
   }]
 };
