@@ -42,30 +42,62 @@ echo "╚═══════════════════════�
 echo -e "${NC}"
 
 # =============================================
-# VERSION SELECTION
+# VERSION SELECTION WITH COMPREHENSIVE MENU
 # =============================================
 echo ""
-echo -e "${CYAN}=== Select SAIC Version ===${NC}"
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                         INSTALLATION OPTIONS                                  ║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║  OPTION           │ STACK              │ PORTS        │ API KEY REQUIRED     ║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║${NC}  1) SAIC Classic  ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 80, 5000     ${CYAN}│${NC} ${GREEN}OpenAI${NC}               ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  2) SAIC Pro      ${CYAN}│${NC} Node.js + PM2      ${CYAN}│${NC} 80, 5000     ${CYAN}│${NC} ${GREEN}OpenAI${NC}               ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  3) Remote + AI   ${CYAN}│${NC} Tomcat + MariaDB   ${CYAN}│${NC} 80, 8080     ${CYAN}│${NC} ${PURPLE}Anthropic${NC}            ${CYAN}║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║${NC}  ${YELLOW}COMPONENTS INSTALLED:${NC}                                                       ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ All Options: Nginx, UFW/firewalld, fail2ban, certbot                     ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ Options 1,2: Node.js 20, PM2, build-essential                            ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  └─ Option 3:    Tomcat9, MariaDB, guacd, libguac*, Java 11                  ${CYAN}║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║${NC}  ${YELLOW}OPTION DETAILS:${NC}                                                              ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ 1) Classic:    Simple editor + DJ mode + quick patterns                  ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  │                 Best for: Beginners, mobile music making                  ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ 2) Pro:        Embedded strudel.cc REPL + music theory tools             ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  │                 Best for: Experienced live coders                         ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  └─ 3) Remote+AI:  Guacamole remote desktop + Claude AI assistant            ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}                    Best for: Server management, headless VPS access          ${CYAN}║${NC}"
+echo -e "${CYAN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${CYAN}║${NC}  ${YELLOW}GET API KEYS:${NC}                                                                ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ OpenAI:    ${GREEN}https://platform.openai.com/api-keys${NC}                        ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  └─ Anthropic: ${PURPLE}https://console.anthropic.com/settings/keys${NC}                 ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}                                                                              ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ${YELLOW}NEED TEMP EMAIL/PHONE FOR SIGNUP?${NC}                                           ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ├─ Email:  ${BLUE}https://mail.tm${NC} or ${BLUE}https://temp-mail.io${NC}                       ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  └─ SMS:    ${BLUE}https://quackr.io${NC} or ${BLUE}https://sms-activate.io/freeNumbers${NC}      ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "Choose which version to install:"
-echo -e "  ${CYAN}1)${NC} Classic Mode - Original simple interface (main branch)"
-echo -e "  ${CYAN}2)${NC} Pro Mode - New AI-enhanced version with music theory tools (pro-mode branch)"
-echo ""
-read -p "Enter choice (1 or 2) [2]: " VERSION_CHOICE </dev/tty
+read -p "Enter choice (1, 2, or 3) [2]: " VERSION_CHOICE </dev/tty
 VERSION_CHOICE=${VERSION_CHOICE:-2}
+
+INSTALL_GUACAMOLE=false
 
 case $VERSION_CHOICE in
     1)
         GIT_BRANCH="main"
-        echo -e "${GREEN}Selected: Classic Mode (main branch)${NC}"
+        echo -e "${GREEN}Selected: SAIC Classic (main branch)${NC}"
         ;;
     2)
-        GIT_BRANCH="pro-mode"
-        echo -e "${GREEN}Selected: Pro Mode (pro-mode branch)${NC}"
+        GIT_BRANCH="Pro"
+        echo -e "${GREEN}Selected: SAIC Pro (Pro branch)${NC}"
+        ;;
+    3)
+        GIT_BRANCH="Pro"
+        INSTALL_GUACAMOLE=true
+        echo -e "${GREEN}Selected: Remote Desktop + AI (Guacamole + Claude)${NC}"
         ;;
     *)
-        GIT_BRANCH="pro-mode"
-        echo -e "${YELLOW}Invalid choice, defaulting to Pro Mode${NC}"
+        GIT_BRANCH="Pro"
+        echo -e "${YELLOW}Invalid choice, defaulting to SAIC Pro${NC}"
         ;;
 esac
 
@@ -242,14 +274,42 @@ if [ -z "$DETECTED_OS" ]; then
 fi
 
 echo ""
-echo -e "${CYAN}=== Step 2: OpenAI API Key (Required) ===${NC}"
-echo ""
-echo "Get your API key at: https://platform.openai.com/api-keys"
-echo ""
-read -p "Enter your OpenAI API key: " OPENAI_KEY </dev/tty
-if [ -z "$OPENAI_KEY" ]; then
-    echo -e "${RED}OpenAI API key is required!${NC}"
-    exit 1
+OPENAI_KEY=""
+ANTHROPIC_KEY=""
+
+if [ "$INSTALL_GUACAMOLE" = true ]; then
+    # Option 3: Anthropic is required, OpenAI is optional
+    echo -e "${CYAN}=== Step 2: Anthropic API Key (Required for Claude AI) ===${NC}"
+    echo ""
+    echo "Get your API key at: https://console.anthropic.com/settings/keys"
+    echo ""
+    read -p "Enter your Anthropic API key: " ANTHROPIC_KEY </dev/tty
+    if [ -z "$ANTHROPIC_KEY" ]; then
+        echo -e "${RED}Anthropic API key is required for Remote Desktop + AI option!${NC}"
+        exit 1
+    fi
+    
+    echo ""
+    echo -e "${CYAN}=== Step 2b: OpenAI API Key (Optional) ===${NC}"
+    echo ""
+    echo "OpenAI enables AI music code generation in the SAIC app."
+    echo -e "${YELLOW}Leave blank to skip (Claude AI will still work)${NC}"
+    echo ""
+    read -p "Enter your OpenAI API key (or press Enter to skip): " OPENAI_KEY </dev/tty
+    if [ -z "$OPENAI_KEY" ]; then
+        echo -e "${YELLOW}Skipping OpenAI - music generation will be disabled${NC}"
+    fi
+else
+    # Options 1 & 2: OpenAI is required for music generation
+    echo -e "${CYAN}=== Step 2: OpenAI API Key (Required) ===${NC}"
+    echo ""
+    echo "Get your API key at: https://platform.openai.com/api-keys"
+    echo ""
+    read -p "Enter your OpenAI API key: " OPENAI_KEY </dev/tty
+    if [ -z "$OPENAI_KEY" ]; then
+        echo -e "${RED}OpenAI API key is required!${NC}"
+        exit 1
+    fi
 fi
 
 echo ""
@@ -298,10 +358,21 @@ INSTALL_METHOD=${INSTALL_METHOD:-1}
 echo ""
 echo -e "${CYAN}=== Configuration Summary ===${NC}"
 echo ""
-echo -e "  Version:      ${GREEN}$([ "$GIT_BRANCH" == "main" ] && echo "Classic Mode" || echo "Pro Mode")${NC}"
+if [ "$INSTALL_GUACAMOLE" = true ]; then
+    echo -e "  Install:      ${GREEN}Remote Desktop + AI (Guacamole + Claude)${NC}"
+else
+    echo -e "  Version:      ${GREEN}$([ "$GIT_BRANCH" == "main" ] && echo "Classic Mode" || echo "Pro Mode")${NC}"
+fi
 echo -e "  Branch:       ${GREEN}$GIT_BRANCH${NC}"
 echo -e "  OS Type:      ${GREEN}$DETECTED_OS${NC}"
-echo -e "  OpenAI Key:   ${GREEN}sk-****${OPENAI_KEY: -4}${NC}"
+if [ -n "$OPENAI_KEY" ]; then
+    echo -e "  OpenAI Key:   ${GREEN}sk-****${OPENAI_KEY: -4}${NC}"
+else
+    echo -e "  OpenAI Key:   ${YELLOW}Not set${NC}"
+fi
+if [ -n "$ANTHROPIC_KEY" ]; then
+    echo -e "  Anthropic:    ${GREEN}sk-ant-****${ANTHROPIC_KEY: -4}${NC}"
+fi
 if [ -n "$AUTH_USER" ]; then
     echo -e "  Auth User:    ${GREEN}$AUTH_USER${NC}"
     echo -e "  Auth Pass:    ${GREEN}********${NC}"
@@ -328,7 +399,7 @@ install_debian_deps() {
     apt update && apt upgrade -y
     
     echo -e "${BLUE}[2/8] Installing dependencies...${NC}"
-    apt install -y curl git nginx ufw build-essential chromium xvfb
+    apt install -y curl git nginx ufw fail2ban build-essential chromium xvfb htop
     
     echo -e "${BLUE}[3/8] Installing Node.js 20...${NC}"
     if ! command -v node &> /dev/null; then
@@ -342,7 +413,7 @@ install_rocky_deps() {
     dnf update -y
     
     echo -e "${BLUE}[2/8] Installing dependencies...${NC}"
-    dnf install -y curl git nginx firewalld epel-release chromium xorg-x11-server-Xvfb
+    dnf install -y curl git nginx firewalld fail2ban epel-release chromium xorg-x11-server-Xvfb htop
     
     echo -e "${BLUE}[3/8] Installing Node.js 20...${NC}"
     if ! command -v node &> /dev/null; then
@@ -354,6 +425,90 @@ install_rocky_deps() {
 install_pm2() {
     echo -e "${BLUE}[4/8] Installing PM2...${NC}"
     npm install -g pm2
+}
+
+configure_fail2ban() {
+    echo -e "${BLUE}Configuring fail2ban for SSH and Nginx protection...${NC}"
+    
+    # Check which filters are available
+    FILTER_DIR="/etc/fail2ban/filter.d"
+    HAS_NGINX_HTTP_AUTH=false
+    HAS_NGINX_LIMIT_REQ=false
+    HAS_NGINX_BOTSEARCH=false
+    
+    [ -f "$FILTER_DIR/nginx-http-auth.conf" ] && HAS_NGINX_HTTP_AUTH=true
+    [ -f "$FILTER_DIR/nginx-limit-req.conf" ] && HAS_NGINX_LIMIT_REQ=true
+    [ -f "$FILTER_DIR/nginx-botsearch.conf" ] && HAS_NGINX_BOTSEARCH=true
+    
+    # Determine auth log path
+    AUTH_LOG="/var/log/auth.log"
+    [ -f /etc/redhat-release ] && AUTH_LOG="/var/log/secure"
+    
+    # Create base jail configuration (SSH always works)
+    cat > /etc/fail2ban/jail.local << JAILEOF
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = $AUTH_LOG
+maxretry = 3
+bantime = 86400
+JAILEOF
+
+    # Add nginx jails only if their filters exist
+    if [ "$HAS_NGINX_HTTP_AUTH" = true ]; then
+        cat >> /etc/fail2ban/jail.local << 'JAILEOF'
+
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 5
+bantime = 3600
+JAILEOF
+        echo -e "  ${GREEN}[OK]${NC} nginx-http-auth jail enabled"
+    fi
+    
+    if [ "$HAS_NGINX_LIMIT_REQ" = true ]; then
+        cat >> /etc/fail2ban/jail.local << 'JAILEOF'
+
+[nginx-limit-req]
+enabled = true
+filter = nginx-limit-req
+logpath = /var/log/nginx/error.log
+maxretry = 10
+bantime = 7200
+JAILEOF
+        echo -e "  ${GREEN}[OK]${NC} nginx-limit-req jail enabled"
+    fi
+    
+    if [ "$HAS_NGINX_BOTSEARCH" = true ]; then
+        cat >> /etc/fail2ban/jail.local << 'JAILEOF'
+
+[nginx-botsearch]
+enabled = true
+filter = nginx-botsearch
+logpath = /var/log/nginx/access.log
+maxretry = 2
+bantime = 86400
+JAILEOF
+        echo -e "  ${GREEN}[OK]${NC} nginx-botsearch jail enabled"
+    fi
+    
+    # Enable and start fail2ban (with error handling)
+    systemctl enable fail2ban 2>/dev/null || true
+    if systemctl restart fail2ban 2>/dev/null; then
+        echo -e "  ${GREEN}[OK]${NC} fail2ban started successfully"
+    else
+        echo -e "  ${YELLOW}[WARN]${NC} fail2ban restart had issues, checking status..."
+        systemctl status fail2ban --no-pager 2>/dev/null || true
+    fi
 }
 
 clone_repo() {
@@ -911,6 +1066,9 @@ else
     configure_rocky_nginx
 fi
 
+# Configure fail2ban security
+configure_fail2ban
+
 start_pm2
 
 # Get IP and domain
@@ -952,13 +1110,17 @@ if [ -n "$AUTH_USER" ]; then
 fi
 
 echo -e "${CYAN}=== Useful Commands ===${NC}"
-echo -e "  ${YELLOW}pm2 logs saic${NC}       - View application logs"
-echo -e "  ${YELLOW}pm2 restart saic${NC}    - Restart application"
-echo -e "  ${YELLOW}pm2 stop saic${NC}       - Stop application"
-echo -e "  ${YELLOW}pm2 status${NC}          - Check all processes"
-echo -e "  ${YELLOW}pm2 monit${NC}           - Real-time monitoring"
+echo -e "  ${YELLOW}saic-status${NC}         - Check app, nginx, services status"
+echo -e "  ${YELLOW}saic-logs${NC}           - View live application logs"
+echo -e "  ${YELLOW}saic-stats${NC}          - CPU, memory, disk usage overview"
+echo -e "  ${YELLOW}saic-security${NC}       - Firewall status, banned IPs, failed logins"
 echo -e "  ${YELLOW}saic-passwd${NC}         - Change/reset password protection"
 echo -e "  ${YELLOW}saic-ssl${NC}            - Setup SSL certificate"
+echo ""
+echo -e "${CYAN}=== PM2 Commands ===${NC}"
+echo -e "  ${YELLOW}pm2 logs saic${NC}       - View raw application logs"
+echo -e "  ${YELLOW}pm2 restart saic${NC}    - Restart application"
+echo -e "  ${YELLOW}pm2 monit${NC}           - Real-time monitoring dashboard"
 echo ""
 
 # Create SSL setup script for later use
@@ -1106,6 +1268,190 @@ case $CHOICE in
 esac
 PWEOF
 chmod +x /usr/local/bin/saic-passwd
+
+# Create saic-status helper script
+cat > /usr/local/bin/saic-status << 'STATUSEOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                    SAIC STATUS CHECK                       ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+echo -e "${CYAN}=== System Info ===${NC}"
+echo -e "  Hostname:     $(hostname)"
+echo -e "  IP Address:   $(hostname -I | awk '{print $1}')"
+echo -e "  Uptime:       $(uptime -p 2>/dev/null || uptime)"
+echo ""
+
+echo -e "${CYAN}=== Services Status ===${NC}"
+check_service() {
+    local name=$1
+    local service=$2
+    if systemctl is-active --quiet $service 2>/dev/null; then
+        echo -e "  $name: ${GREEN}[RUNNING]${NC}"
+    else
+        echo -e "  $name: ${RED}[STOPPED]${NC}"
+    fi
+}
+
+check_service "Nginx" "nginx"
+check_service "fail2ban" "fail2ban"
+echo ""
+
+echo -e "${CYAN}=== PM2 Application ===${NC}"
+if command -v pm2 &> /dev/null; then
+    pm2 list 2>/dev/null | grep -E "Name|saic" || echo -e "  ${YELLOW}No PM2 processes found${NC}"
+else
+    echo -e "  ${YELLOW}PM2 not installed${NC}"
+fi
+echo ""
+
+echo -e "${CYAN}=== Open Ports ===${NC}"
+ss -tlnp 2>/dev/null | grep -E "LISTEN.*:(80|443|5000|8080)" | while read line; do
+    port=$(echo $line | grep -oP ':\K\d+(?=\s)')
+    echo -e "  Port $port: ${GREEN}[LISTENING]${NC}"
+done
+echo ""
+STATUSEOF
+chmod +x /usr/local/bin/saic-status
+
+# Create saic-logs helper script
+cat > /usr/local/bin/saic-logs << 'LOGSEOF'
+#!/bin/bash
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${CYAN}=== SAIC Log Viewer ===${NC}"
+echo ""
+echo "Select log to view:"
+echo "  1) PM2 Application Logs (live)"
+echo "  2) Nginx Access Log (last 50 lines)"
+echo "  3) Nginx Error Log (last 50 lines)"
+echo "  4) fail2ban Log (last 50 lines)"
+echo "  5) System Auth Log (last 50 lines)"
+echo ""
+read -p "Enter choice [1-5]: " CHOICE
+
+case $CHOICE in
+    1) echo -e "${GREEN}Showing PM2 logs (Ctrl+C to exit)...${NC}"; pm2 logs saic ;;
+    2) echo -e "${GREEN}Nginx Access Log:${NC}"; tail -50 /var/log/nginx/access.log 2>/dev/null || echo "Log not found" ;;
+    3) echo -e "${GREEN}Nginx Error Log:${NC}"; tail -50 /var/log/nginx/error.log 2>/dev/null || echo "Log not found" ;;
+    4) echo -e "${GREEN}fail2ban Log:${NC}"; tail -50 /var/log/fail2ban.log 2>/dev/null || echo "Log not found" ;;
+    5) if [ -f /var/log/auth.log ]; then tail -50 /var/log/auth.log; elif [ -f /var/log/secure ]; then tail -50 /var/log/secure; else echo "Log not found"; fi ;;
+    *) echo "Invalid choice" ;;
+esac
+LOGSEOF
+chmod +x /usr/local/bin/saic-logs
+
+# Create saic-stats helper script
+cat > /usr/local/bin/saic-stats << 'STATSEOF'
+#!/bin/bash
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                    SAIC SERVER STATS                       ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+echo -e "${CYAN}=== CPU Usage ===${NC}"
+cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+echo -e "  Usage:       ${GREEN}${cpu_usage}%${NC}"
+echo -e "  Load Avg:    $(cat /proc/loadavg | awk '{print $1, $2, $3}')"
+echo ""
+
+echo -e "${CYAN}=== Memory Usage ===${NC}"
+mem_info=$(free -h | grep Mem)
+echo -e "  Total:       $(echo $mem_info | awk '{print $2}')"
+echo -e "  Used:        ${GREEN}$(echo $mem_info | awk '{print $3}')${NC}"
+echo -e "  Free:        $(echo $mem_info | awk '{print $4}')"
+echo ""
+
+echo -e "${CYAN}=== Disk Usage ===${NC}"
+df -h / | tail -1 | awk '{printf "  Total:       %s\n  Used:        \033[0;32m%s (%s)\033[0m\n  Free:        %s\n", $2, $3, $5, $4}'
+echo ""
+
+echo -e "${CYAN}=== Network Connections ===${NC}"
+active_conn=$(ss -tun | grep ESTAB | wc -l)
+echo -e "  Active:      ${GREEN}${active_conn}${NC} established connections"
+echo ""
+
+echo -e "${YELLOW}Tip: Run 'htop' for interactive monitoring${NC}"
+echo ""
+STATSEOF
+chmod +x /usr/local/bin/saic-stats
+
+# Create saic-security helper script
+cat > /usr/local/bin/saic-security << 'SECEOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                 SAIC SECURITY STATUS                       ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+echo -e "${CYAN}=== Firewall Status ===${NC}"
+if command -v ufw &> /dev/null; then
+    ufw_status=$(ufw status 2>/dev/null | head -1)
+    if echo "$ufw_status" | grep -q "active"; then
+        echo -e "  UFW:         ${GREEN}[ACTIVE]${NC}"
+        ufw status | grep -E "ALLOW" | while read line; do echo "    $line"; done
+    else
+        echo -e "  UFW:         ${RED}[INACTIVE]${NC}"
+    fi
+elif command -v firewall-cmd &> /dev/null; then
+    if systemctl is-active --quiet firewalld; then
+        echo -e "  firewalld:   ${GREEN}[ACTIVE]${NC}"
+    else
+        echo -e "  firewalld:   ${RED}[INACTIVE]${NC}"
+    fi
+fi
+echo ""
+
+echo -e "${CYAN}=== fail2ban Status ===${NC}"
+if systemctl is-active --quiet fail2ban 2>/dev/null; then
+    echo -e "  Status:      ${GREEN}[ACTIVE]${NC}"
+    jails=$(fail2ban-client status 2>/dev/null | grep "Jail list" | cut -d: -f2 | tr ',' '\n')
+    for jail in $jails; do
+        jail=$(echo $jail | xargs)
+        if [ -n "$jail" ]; then
+            banned=$(fail2ban-client status $jail 2>/dev/null | grep "Currently banned" | awk '{print $NF}')
+            echo -e "    $jail: ${GREEN}${banned}${NC} banned"
+        fi
+    done
+else
+    echo -e "  Status:      ${RED}[INACTIVE]${NC}"
+fi
+echo ""
+
+echo -e "${CYAN}=== Recent Failed Logins (last 5) ===${NC}"
+if [ -f /var/log/auth.log ]; then
+    grep -i "failed" /var/log/auth.log 2>/dev/null | tail -5 | while read line; do echo "  $line"; done
+elif [ -f /var/log/secure ]; then
+    grep -i "failed" /var/log/secure 2>/dev/null | tail -5 | while read line; do echo "  $line"; done
+fi
+echo ""
+
+echo -e "${YELLOW}=== Security Tips ===${NC}"
+echo "  - Run 'saic-ssl' to enable HTTPS"
+echo "  - Run 'saic-passwd' to set password protection"
+echo ""
+SECEOF
+chmod +x /usr/local/bin/saic-security
 
 # Ask about SSL setup
 echo -e "${CYAN}=== SSL Certificate Setup ===${NC}"
