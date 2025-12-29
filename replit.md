@@ -154,6 +154,28 @@ A mobile-optimized web application that combines Strudel (a live coding music en
   - External (Mode 3 only): 8080 (Guacamole)
   - Internal only: 5000 (Node.js), 4822 (guacd), 5901 (VNC)
 
+## Credential Management
+
+### Mode 3 Credentials (Auto-generated during install)
+- **VNC/Desktop**: Random 8-char password stored at `/opt/SAIC/.vnc_password`
+- **Guacamole Admin**: Random 12-char password stored at `/opt/SAIC/.guacadmin_password`
+  - Uses SHA-256(password + salt) hashing via Python3 for binary safety
+  - Password set BEFORE Tomcat starts (no default credential window)
+- All credential files have `chmod 600` (root-only readable)
+
+### Web Access Users (Optional, Modes 1 & 2)
+- Stored in `/opt/SAIC/.env` as AUTH_USER and AUTH_PASS
+- Managed via SSH helper commands:
+  - `saic-users` - List configured users
+  - `saic-adduser` - Add user with password
+  - `saic-deluser` - Remove user
+
+### SSH Login Banner (MOTD)
+- Shows last 10 successful SSH logins with user, IP, method
+- Shows last 10 web accesses (200 OK) from nginx
+- Shows top 5 IPs with failed login attempts
+- Uses portable sed/awk parsing (no grep -P for cross-distro compatibility)
+
 ## Development
 
 The application runs on port 5000 with Vite dev server. The workflow `Start application` executes `npm run dev`.
