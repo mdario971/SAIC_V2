@@ -304,6 +304,12 @@ perform_cleanup() {
             echo -e "  ${GREEN}[OK]${NC} Removed Tomcat 10 (apt package)"
         fi
         
+        # Kill any stale Java/Tomcat processes holding ports
+        pkill -9 -f tomcat 2>/dev/null || true
+        pkill -9 java 2>/dev/null || true
+        sleep 2  # Wait for ports to be released
+        echo -e "  ${GREEN}[OK]${NC} Killed stale Java/Tomcat processes"
+        
         # Stop and remove Tomcat 9 (manual installation)
         systemctl stop tomcat9 2>/dev/null || true
         systemctl disable tomcat9 2>/dev/null || true
@@ -946,6 +952,11 @@ PROPEOF
     ln -sf /etc/guacamole /opt/tomcat9/.guacamole
     chown -h tomcat:tomcat /opt/tomcat9/.guacamole
     
+    # Kill any stale Java/Tomcat processes that might be holding port 8080
+    pkill -9 -f tomcat 2>/dev/null || true
+    pkill -9 java 2>/dev/null || true
+    sleep 2  # Wait for ports to be released
+    
     # Start Tomcat 9
     systemctl enable tomcat9
     systemctl start tomcat9
@@ -1075,6 +1086,11 @@ mysql-auto-create-accounts: true
 PROPEOF
     
     ln -sf /etc/guacamole /var/lib/tomcat/.guacamole
+    
+    # Kill any stale Java/Tomcat processes that might be holding port 8080
+    pkill -9 -f tomcat 2>/dev/null || true
+    pkill -9 java 2>/dev/null || true
+    sleep 2  # Wait for ports to be released
     
     systemctl enable tomcat
     systemctl restart tomcat

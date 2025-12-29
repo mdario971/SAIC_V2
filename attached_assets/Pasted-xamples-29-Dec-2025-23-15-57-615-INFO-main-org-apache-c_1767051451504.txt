@@ -1,0 +1,146 @@
+xamples]
+29-Dec-2025 23:15:57.615 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/examples] has finished in [162] ms
+29-Dec-2025 23:15:57.616 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/manager]
+29-Dec-2025 23:15:57.640 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/manager] has finished in [23] ms
+29-Dec-2025 23:15:57.640 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/ROOT]
+29-Dec-2025 23:15:57.654 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/ROOT] has finished in [14] ms
+29-Dec-2025 23:15:57.654 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/host-manager]
+29-Dec-2025 23:15:57.669 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/host-manager] has finished in [14] ms
+29-Dec-2025 23:15:57.669 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/docs]
+29-Dec-2025 23:15:57.680 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/docs] has finished in [11] ms
+29-Dec-2025 23:15:57.687 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [4247] milliseconds
+debian@vps-e1d360fd:~$ sudo systemctl status tomcat9
+● tomcat9.service - Apache Tomcat 9 Web Application Server
+     Loaded: loaded (/etc/systemd/system/tomcat9.service; enabled; pres>     Active: active (running) since Mon 2025-12-29 23:15:52 UTC; 20min > Invocation: 2607a3ff483e4c92a67f0756f9c79190
+   Main PID: 14922 (java)
+      Tasks: 25 (limit: 13980)
+     Memory: 380M (peak: 380.3M)
+        CPU: 13.554s
+     CGroup: /system.slice/tomcat9.service
+             └─14922 /usr/lib/jvm/default-java/bin/java -Djava.util.log>
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Starting tomcat9.service - Apa>Dec 29 23:15:52 vps-e1d360fd startup.sh[14911]: Tomcat started.
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Started tomcat9.service - Apac>lines 1-14/14 (END)...skipping...
+● tomcat9.service - Apache Tomcat 9 Web Application Server
+     Loaded: loaded (/etc/systemd/system/tomcat9.service; enabled; pres>     Active: active (running) since Mon 2025-12-29 23:15:52 UTC; 20min > Invocation: 2607a3ff483e4c92a67f0756f9c79190
+   Main PID: 14922 (java)
+      Tasks: 25 (limit: 13980)
+     Memory: 380M (peak: 380.3M)
+        CPU: 13.554s
+     CGroup: /system.slice/tomcat9.service
+             └─14922 /usr/lib/jvm/default-java/bin/java -Djava.util.log>
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Starting tomcat9.service - Apa>Dec 29 23:15:52 vps-e1d360fd startup.sh[14911]: Tomcat started.
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Started tomcat9.service - Apac>~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+● tomcat9.service - Apache Tomcat 9 Web Application Server
+     Loaded: loaded (/etc/systemd/system/tomcat9.service; enabled; pres>     Active: active (running) since Mon 2025-12-29 23:15:52 UTC; 20min > Invocation: 2607a3ff483e4c92a67f0756f9c79190
+   Main PID: 14922 (java)
+      Tasks: 25 (limit: 13980)
+     Memory: 380M (peak: 380.3M)
+        CPU: 13.554s
+     CGroup: /system.slice/tomcat9.service
+             └─14922 /usr/lib/jvm/default-java/bin/java -Djava.util.log>
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Starting tomcat9.service - Apa>Dec 29 23:15:52 vps-e1d360fd startup.sh[14911]: Tomcat started.
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Started tomcat9.service - Apac>~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+debian@vps-e1d360fd:~$ sudo journalctl -xe -u tomcat9
+~
+~
+~
+~
+~
+~
+~
+~
+~
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Starting tomcat9.service - Apa>░░ Subject: A start job for unit tomcat9.service has begun execution
+░░ Defined-By: systemd
+░░ Support: https://www.debian.org/support
+░░
+░░ A start job for unit tomcat9.service has begun execution.
+░░
+░░ The job identifier is 290364.
+Dec 29 23:15:52 vps-e1d360fd startup.sh[14911]: Tomcat started.
+Dec 29 23:15:52 vps-e1d360fd systemd[1]: Started tomcat9.service - Apac>░░ Subject: A start job for unit tomcat9.service has finished successfu>░░ Defined-By: systemd
+░░ Support: https://www.debian.org/support
+░░
+░░ A start job for unit tomcat9.service has finished successfully.
+░░
+░░ The job identifier is 290364.
+~
+debian@vps-e1d360fd:~$ readlink -f $(which java)
+/usr/lib/jvm/java-21-openjdk-amd64/bin/java
+debian@vps-e1d360fd:~$ sudo ss -tlnp | grep 8080
+debian@vps-e1d360fd:~$ sudo tail -50 /opt/tomcat9/logs/catalina.out 2>/dev/null || echo "No catalina.out found"
+                at org.apache.catalina.core.StandardService.initInternal(StandardService.java:525)
+                at org.apache.catalina.util.LifecycleBase.init(LifecycleBase.java:122)
+                at org.apache.catalina.core.StandardServer.initInternal(StandardServer.java:986)
+                at org.apache.catalina.util.LifecycleBase.init(LifecycleBase.java:122)
+                at org.apache.catalina.startup.Catalina.load(Catalina.java:690)
+                at org.apache.catalina.startup.Catalina.load(Catalina.java:713)
+                at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+                at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+                at org.apache.catalina.startup.Bootstrap.load(Bootstrap.java:302)
+                at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:472)
+        Caused by: java.net.BindException: Address already in use
+                at java.base/sun.nio.ch.Net.bind0(Native Method)
+                at java.base/sun.nio.ch.Net.bind(Net.java:565)
+                at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+                at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+                at org.apache.tomcat.util.net.NioEndpoint.initServerSocket(NioEndpoint.java:268)
+                at org.apache.tomcat.util.net.NioEndpoint.bind(NioEndpoint.java:223)
+                at org.apache.tomcat.util.net.AbstractEndpoint.bindWithCleanup(AbstractEndpoint.java:1373)
+                at org.apache.tomcat.util.net.AbstractEndpoint.init(AbstractEndpoint.java:1386)
+                at org.apache.coyote.AbstractProtocol.init(AbstractProtocol.java:663)
+                at org.apache.coyote.http11.AbstractHttp11Protocol.init(AbstractHttp11Protocol.java:80)
+                at org.apache.catalina.connector.Connector.initInternal(Connector.java:1025)
+                ... 11 more
+29-Dec-2025 23:15:53.438 INFO [main] org.apache.catalina.startup.Catalina.load Server initialization in [561] milliseconds
+29-Dec-2025 23:15:53.473 INFO [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+29-Dec-2025 23:15:53.474 INFO [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet engine: [Apache Tomcat/9.0.98]
+29-Dec-2025 23:15:53.489 INFO [main] org.apache.catalina.startup.HostConfig.deployWAR Deploying web application archive [/opt/tomcat9/webapps/guacamole.war]
+29-Dec-2025 23:15:54.978 INFO [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs.
+Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+23:15:55.199 [main] INFO org.apache.guacamole.environment.LocalEnvironment -- GUACAMOLE_HOME is "/etc/guacamole".
+23:15:55.285 [main] INFO org.apache.guacamole.GuacamoleServletContextListener -- Read configuration parameters from "/etc/guacamole/guacamole.properties".
+23:15:55.289 [main] INFO org.apache.guacamole.rest.auth.HashTokenSessionMap -- Sessions will expire after 60 minutes of inactivity.
+23:15:55.398 [main] INFO org.apache.guacamole.log.LogModule -- Logging will be at the "info" level.
+23:15:55.762 [main] INFO  o.a.g.a.mysql.conf.MySQLEnvironment - Installed JDBC driver for MySQL/MariaDB detected as "MySQL Connector/J".
+23:15:55.764 [main] WARN  o.a.g.a.m.MySQLAuthenticationProviderModule -
+The MySQL module is currently configured to support case-sensitive username and/or group name comparisons, however, the default collations for MySQL databases do not support case-sensitive string comparisons. If you
+want identifiers within Guacamole to be treated as case-sensitive, further database configuration may be required.
+23:15:56.571 [main] INFO  o.a.g.extension.ExtensionModule - Extension "MySQL Authentication" (mysql) loaded.
+23:15:56.686 [main] INFO  o.a.g.t.w.WebSocketTunnelModule - Loading JSR-356 WebSocket support...
+23:15:56.796 [main] INFO  o.a.g.event.EventLoggingListener - The Apache
+Guacamole web application has started.
+23:15:57.217 [main] WARN  o.g.jersey.server.wadl.WadlFeature - JAXBContext implementation could not be found. WADL feature is disabled.
+29-Dec-2025 23:15:57.453 INFO [main] org.apache.catalina.startup.HostConfig.deployWAR Deployment of web application archive [/opt/tomcat9/webapps/guacamole.war] has finished in [3,963] ms
+29-Dec-2025 23:15:57.453 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/examples]
+29-Dec-2025 23:15:57.615 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/examples] has finished in [162] ms
+29-Dec-2025 23:15:57.616 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/manager]
+29-Dec-2025 23:15:57.640 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/manager] has finished in [23] ms
+29-Dec-2025 23:15:57.640 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/ROOT]
+29-Dec-2025 23:15:57.654 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/ROOT] has finished in [14] ms
+29-Dec-2025 23:15:57.654 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/host-manager]
+29-Dec-2025 23:15:57.669 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/host-manager] has finished in [14] ms
+29-Dec-2025 23:15:57.669 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/opt/tomcat9/webapps/docs]
+29-Dec-2025 23:15:57.680 INFO [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/opt/tomcat9/webapps/docs] has finished in [11] ms
+29-Dec-2025 23:15:57.687 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [4247] milliseconds
+debian@vps-e1d360fd:~$
