@@ -552,15 +552,47 @@ install_guacamole_debian() {
     systemctl start mariadb
     
     # Download and build guacd
-    GUAC_VERSION="1.5.5"
+    # Use Guacamole 1.6.0 for Debian 13+ (FFmpeg 7 support via GUACAMOLE-1952)
+    # Use 1.5.5 for older systems with FFmpeg 5/6
+    if [ "$DEBIAN_MAJOR" -ge 13 ] 2>/dev/null; then
+        GUAC_VERSION="1.6.0"
+        echo -e "  ${CYAN}Using Guacamole $GUAC_VERSION (FFmpeg 7 compatible)${NC}"
+    else
+        GUAC_VERSION="1.5.5"
+        echo -e "  ${CYAN}Using Guacamole $GUAC_VERSION${NC}"
+    fi
+    
     cd /tmp
+    rm -rf guacamole-server* 2>/dev/null
     wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz || \
     wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz
     
     tar -xzf guacamole-server.tar.gz
     cd guacamole-server-${GUAC_VERSION}
-    ./configure --with-init-dir=/etc/init.d
-    make
+    
+    # Configure with fallback: try full build, then disable guacenc if FFmpeg issues persist
+    GUAC_CONFIGURE_OPTS="--with-init-dir=/etc/init.d"
+    if ! ./configure $GUAC_CONFIGURE_OPTS 2>&1; then
+        echo -e "  ${YELLOW}[WARN]${NC} Configure failed, retrying without guacenc..."
+        GUAC_CONFIGURE_OPTS="$GUAC_CONFIGURE_OPTS --disable-guacenc"
+        ./configure $GUAC_CONFIGURE_OPTS
+    fi
+    
+    # Build with fallback for FFmpeg deprecation warnings
+    if ! make 2>&1; then
+        echo -e "  ${YELLOW}[WARN]${NC} Build failed, retrying with relaxed warnings..."
+        make clean
+        CFLAGS="-Wno-error=deprecated-declarations" ./configure $GUAC_CONFIGURE_OPTS
+        if ! make 2>&1; then
+            echo -e "  ${YELLOW}[WARN]${NC} Still failing, disabling guacenc entirely..."
+            make clean
+            CFLAGS="-Wno-error=deprecated-declarations" ./configure $GUAC_CONFIGURE_OPTS --disable-guacenc
+            make
+        fi
+    fi
+    
+    echo -e "  ${GREEN}[OK]${NC} guacamole-server built successfully"
+    
     make install
     ldconfig
     
