@@ -1,0 +1,78 @@
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /usr/local/lib
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[2]: Nothing to be done for 'install-data-am'.
+make[2]: Leaving directory '/tmp/guacamole-server-1.6.0/src/protocols/vnc'
+make[1]: Leaving directory '/tmp/guacamole-server-1.6.0/src/protocols/vnc'
+Making install in src/guacd
+make[1]: Entering directory '/tmp/guacamole-server-1.6.0/src/guacd'
+make[2]: Entering directory '/tmp/guacamole-server-1.6.0/src/guacd'
+ /usr/bin/mkdir -p '/usr/local/sbin'
+  /bin/bash ../../libtool   --mode=install /usr/bin/install -c guacd '/usr/local/sbin'
+libtool: install: /usr/bin/install -c .libs/guacd /usr/local/sbin/guacd
+ /usr/bin/mkdir -p '/etc/init.d'
+ /usr/bin/install -c init.d/guacd '/etc/init.d'
+ /usr/bin/mkdir -p '/usr/local/share/man/man5'
+ /usr/bin/install -c -m 644 man/guacd.conf.5 '/usr/local/share/man/man5' /usr/bin/mkdir -p '/usr/local/share/man/man8'
+ /usr/bin/install -c -m 644 man/guacd.8 '/usr/local/share/man/man8'
+make[2]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guacd'
+make[1]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guacd'
+Making install in src/guacenc
+make[1]: Entering directory '/tmp/guacamole-server-1.6.0/src/guacenc'
+make[2]: Entering directory '/tmp/guacamole-server-1.6.0/src/guacenc'
+ /usr/bin/mkdir -p '/usr/local/bin'
+  /bin/bash ../../libtool   --mode=install /usr/bin/install -c guacenc '/usr/local/bin'
+libtool: install: /usr/bin/install -c .libs/guacenc /usr/local/bin/guacenc
+ /usr/bin/mkdir -p '/usr/local/share/man/man1'
+ /usr/bin/install -c -m 644 man/guacenc.1 '/usr/local/share/man/man1'
+make[2]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guacenc'
+make[1]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guacenc'
+Making install in src/guaclog
+make[1]: Entering directory '/tmp/guacamole-server-1.6.0/src/guaclog'
+make[2]: Entering directory '/tmp/guacamole-server-1.6.0/src/guaclog'
+ /usr/bin/mkdir -p '/usr/local/bin'
+  /bin/bash ../../libtool   --mode=install /usr/bin/install -c guaclog '/usr/local/bin'
+libtool: install: /usr/bin/install -c .libs/guaclog /usr/local/bin/guaclog
+ /usr/bin/mkdir -p '/usr/local/share/man/man1'
+ /usr/bin/install -c -m 644 man/guaclog.1 '/usr/local/share/man/man1'
+make[2]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guaclog'
+make[1]: Leaving directory '/tmp/guacamole-server-1.6.0/src/guaclog'
+make[1]: Entering directory '/tmp/guacamole-server-1.6.0'
+make[2]: Entering directory '/tmp/guacamole-server-1.6.0'
+make[2]: Nothing to be done for 'install-exec-am'.
+make[2]: Nothing to be done for 'install-data-am'.
+make[2]: Leaving directory '/tmp/guacamole-server-1.6.0'
+make[1]: Leaving directory '/tmp/guacamole-server-1.6.0'
+Synchronizing state of guacd.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable guacd
+--------------
+CREATE TABLE `guacamole_connection_group` (
+  `connection_group_id`   int(11)      NOT NULL AUTO_INCREMENT,
+  `parent_id`             int(11),
+  `connection_group_name` varchar(128) NOT NULL,
+  `type`                  enum('ORGANIZATIONAL',
+                               'BALANCING') NOT NULL DEFAULT 'ORGANIZATIONAL',
+  `max_connections`          int(11),
+  `max_connections_per_user` int(11),
+  `enable_session_affinity`  boolean NOT NULL DEFAULT 0,
+  PRIMARY KEY (`connection_group_id`),
+  UNIQUE KEY `connection_group_name_parent` (`connection_group_name`, `parent_id`),
+  CONSTRAINT `guacamole_connection_group_ibfk_1`
+    FOREIGN KEY (`parent_id`)
+    REFERENCES `guacamole_connection_group` (`connection_group_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+--------------
+ERROR 1050 (42S01) at line 24: Table 'guacamole_connection_group' already exists

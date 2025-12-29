@@ -121,7 +121,9 @@ echo -e "${CYAN}=== Checking for Existing Installation ===${NC}"
 echo ""
 
 FOUND_EXISTING=false
+FOUND_GUACAMOLE=false
 EXISTING_ITEMS=""
+GUACAMOLE_ITEMS=""
 
 # Check for SAIC directory
 if [ -d "/opt/SAIC" ]; then
@@ -149,55 +151,230 @@ if [ -f "/usr/local/bin/saic-ssl" ]; then
     EXISTING_ITEMS="${EXISTING_ITEMS}\n  - /usr/local/bin/saic-ssl"
 fi
 
-if [ "$FOUND_EXISTING" = true ]; then
-    echo -e "${YELLOW}Existing SAIC installation detected:${NC}"
-    echo -e "$EXISTING_ITEMS"
-    echo ""
-    read -p "Remove existing installation before continuing? (Y/n): " CLEAN_EXISTING </dev/tty
+# Check for saic user
+if id "saic" &>/dev/null; then
+    FOUND_EXISTING=true
+    EXISTING_ITEMS="${EXISTING_ITEMS}\n  - saic user account"
+fi
+
+# Check for Guacamole components (Mode 3)
+if [ -f "/usr/local/sbin/guacd" ]; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - guacd server binary"
+fi
+if [ -d "/etc/guacamole" ]; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - /etc/guacamole configuration"
+fi
+if systemctl list-unit-files | grep -q "guacd.service"; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - guacd systemd service"
+fi
+if ls /var/lib/tomcat*/webapps/guacamole* &>/dev/null 2>&1; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - Tomcat Guacamole webapp"
+fi
+if systemctl list-unit-files | grep -q "vncserver@.service"; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - VNC server service"
+fi
+
+# Check if Guacamole was installed by SAIC
+GUAC_BY_SAIC=false
+if [ -f "/opt/SAIC/.guacamole_by_saic" ]; then
+    GUAC_BY_SAIC=true
+fi
+
+# Function to perform cleanup based on level
+perform_cleanup() {
+    local LEVEL=$1
     
-    if [[ ! "$CLEAN_EXISTING" =~ ^[Nn]$ ]]; then
-        echo ""
-        echo -e "${BLUE}Cleaning existing installation...${NC}"
-        
-        # Stop and delete PM2 process
+    # Level 1, 2, 3: Always stop PM2 and clean SAIC database
+    if [ "$LEVEL" -ge 1 ]; then
+        # Stop PM2 process to allow clean reinstall
         if command -v pm2 &> /dev/null; then
             pm2 stop saic 2>/dev/null || true
             pm2 delete saic 2>/dev/null || true
             pm2 save 2>/dev/null || true
+            echo -e "  ${GREEN}[OK]${NC} PM2 process stopped"
         fi
+        
+        # Drop and recreate database if MariaDB/MySQL is running
+        if systemctl is-active --quiet mariadb 2>/dev/null || systemctl is-active --quiet mysql 2>/dev/null; then
+            echo -e "  ${BLUE}Cleaning Guacamole database...${NC}"
+            mysql -u root -e "DROP DATABASE IF EXISTS guacamole_db;" 2>/dev/null || true
+            mysql -u root -e "DROP USER IF EXISTS 'guacamole_user'@'localhost';" 2>/dev/null || true
+            echo -e "  ${GREEN}[OK]${NC} Database cleaned"
+        fi
+    fi
+    
+    # Level 2, 3: Full SAIC cleanup (PM2 already stopped by Level 1)
+    if [ "$LEVEL" -ge 2 ]; then
+        # Stop VNC service
+        systemctl stop vncserver@:1.service 2>/dev/null || true
+        systemctl disable vncserver@:1.service 2>/dev/null || true
         
         # Remove app directory
         if [ -d "/opt/SAIC" ]; then
             rm -rf /opt/SAIC
-            echo -e "  Removed /opt/SAIC"
+            echo -e "  ${GREEN}[OK]${NC} Removed /opt/SAIC"
+        fi
+        
+        # Remove saic user home (includes .vnc, .config/Claude, .npm-global)
+        if id "saic" &>/dev/null; then
+            pkill -u saic 2>/dev/null || true
+            userdel -r saic 2>/dev/null || true
+            echo -e "  ${GREEN}[OK]${NC} Removed saic user and home directory"
         fi
         
         # Remove nginx configs
         if [ -f "/etc/nginx/sites-available/saic" ]; then
             rm -f /etc/nginx/sites-available/saic
             rm -f /etc/nginx/sites-enabled/saic
-            echo -e "  Removed Nginx config (Debian)"
+            echo -e "  ${GREEN}[OK]${NC} Removed Nginx config (Debian)"
         fi
         if [ -f "/etc/nginx/conf.d/saic.conf" ]; then
             rm -f /etc/nginx/conf.d/saic.conf
-            echo -e "  Removed Nginx config (Rocky)"
+            echo -e "  ${GREEN}[OK]${NC} Removed Nginx config (Rocky)"
         fi
         
-        # Remove SSL helper
-        if [ -f "/usr/local/bin/saic-ssl" ]; then
-            rm -f /usr/local/bin/saic-ssl
-            echo -e "  Removed saic-ssl command"
-        fi
+        # Remove SSL helper and other SAIC commands
+        rm -f /usr/local/bin/saic-ssl 2>/dev/null
+        rm -f /usr/local/bin/saic-status 2>/dev/null
+        rm -f /usr/local/bin/saic-logs 2>/dev/null
+        rm -f /usr/local/bin/saic-stats 2>/dev/null
+        rm -f /usr/local/bin/saic-users 2>/dev/null
+        rm -f /usr/local/bin/saic-adduser 2>/dev/null
+        rm -f /usr/local/bin/saic-deluser 2>/dev/null
+        echo -e "  ${GREEN}[OK]${NC} Removed saic-* helper commands"
         
         # Reload nginx if running
         if systemctl is-active --quiet nginx; then
             nginx -t 2>/dev/null && systemctl reload nginx
         fi
-        
-        echo -e "${GREEN}Cleanup complete!${NC}"
-    else
-        echo -e "${YELLOW}Keeping existing installation. Will overwrite files.${NC}"
     fi
+    
+    # Level 3: Complete Guacamole removal
+    if [ "$LEVEL" -ge 3 ]; then
+        echo -e "  ${BLUE}Removing Guacamole components...${NC}"
+        
+        # Stop and disable guacd
+        systemctl stop guacd 2>/dev/null || true
+        systemctl disable guacd 2>/dev/null || true
+        rm -f /etc/systemd/system/guacd.service 2>/dev/null
+        
+        # Remove VNC service
+        rm -f /etc/systemd/system/vncserver@.service 2>/dev/null
+        
+        # Reload systemd
+        systemctl daemon-reload 2>/dev/null || true
+        
+        # Remove guacd binaries
+        rm -f /usr/local/sbin/guacd 2>/dev/null
+        rm -f /usr/local/bin/guacenc 2>/dev/null
+        rm -f /usr/local/bin/guaclog 2>/dev/null
+        echo -e "  ${GREEN}[OK]${NC} Removed guacd binaries"
+        
+        # Remove Guacamole config
+        rm -rf /etc/guacamole 2>/dev/null
+        echo -e "  ${GREEN}[OK]${NC} Removed /etc/guacamole"
+        
+        # Remove Guacamole webapp from Tomcat
+        rm -f /var/lib/tomcat*/webapps/guacamole.war 2>/dev/null
+        rm -rf /var/lib/tomcat*/webapps/guacamole 2>/dev/null
+        echo -e "  ${GREEN}[OK]${NC} Removed Tomcat Guacamole webapp"
+        
+        # Remove libguac libraries
+        rm -f /usr/local/lib/libguac* 2>/dev/null
+        rm -rf /usr/local/lib/freerdp* 2>/dev/null
+        ldconfig 2>/dev/null || true
+        echo -e "  ${GREEN}[OK]${NC} Removed libguac libraries"
+    fi
+}
+
+if [ "$FOUND_EXISTING" = true ] || [ "$FOUND_GUACAMOLE" = true ]; then
+    echo -e "${YELLOW}Existing installation detected:${NC}"
+    if [ "$FOUND_EXISTING" = true ]; then
+        echo -e "${CYAN}SAIC Components:${NC}"
+        echo -e "$EXISTING_ITEMS"
+    fi
+    if [ "$FOUND_GUACAMOLE" = true ]; then
+        echo -e "${CYAN}Guacamole Components (Mode 3):${NC}"
+        echo -e "$GUACAMOLE_ITEMS"
+        if [ "$GUAC_BY_SAIC" = true ]; then
+            echo -e "  ${GREEN}(Installed by SAIC)${NC}"
+        else
+            echo -e "  ${YELLOW}(May be from separate installation)${NC}"
+        fi
+    fi
+    echo ""
+    echo -e "${CYAN}Choose cleanup level:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1)${NC} Quick reinstall ${CYAN}(recommended)${NC}"
+    echo -e "     Drops SAIC database and recreates fresh"
+    echo -e "     Keeps all binaries, user accounts, configs"
+    echo -e "     ${YELLOW}Best for:${NC} Testing changes, quick updates"
+    echo ""
+    echo -e "  ${GREEN}2)${NC} Full SAIC cleanup"
+    echo -e "     Removes: /opt/SAIC, saic user, database, nginx config"
+    echo -e "     Keeps: Guacamole server, Tomcat, MariaDB installed"
+    echo -e "     ${YELLOW}Best for:${NC} Clean reinstall, changing modes"
+    echo ""
+    echo -e "  ${GREEN}3)${NC} Complete Guacamole removal"
+    echo -e "     Everything in option 2, PLUS:"
+    echo -e "     Removes: guacd, VNC service, Guacamole webapp, libguac"
+    if [ "$GUAC_BY_SAIC" = true ]; then
+        echo -e "     ${GREEN}Safe:${NC} Guacamole was installed by SAIC"
+    else
+        echo -e "     ${RED}WARNING:${NC} Only choose if Guacamole was installed by SAIC"
+        echo -e "     ${RED}         This will break any separate Guacamole setup!${NC}"
+    fi
+    echo -e "     ${YELLOW}Best for:${NC} Full uninstall, freeing disk space"
+    echo ""
+    echo -e "  ${GREEN}4)${NC} Skip cleanup (overwrite files only)"
+    echo -e "     ${YELLOW}Warning:${NC} May cause database conflicts"
+    echo ""
+    
+    read -p "Enter choice [1-4]: " CLEANUP_CHOICE </dev/tty
+    
+    case "$CLEANUP_CHOICE" in
+        1)
+            echo ""
+            echo -e "${BLUE}Performing quick reinstall cleanup...${NC}"
+            perform_cleanup 1
+            echo -e "${GREEN}Quick cleanup complete!${NC}"
+            ;;
+        2)
+            echo ""
+            echo -e "${BLUE}Performing full SAIC cleanup...${NC}"
+            perform_cleanup 2
+            echo -e "${GREEN}Full cleanup complete!${NC}"
+            ;;
+        3)
+            echo ""
+            if [ "$GUAC_BY_SAIC" = false ]; then
+                echo -e "${RED}Are you sure? Guacamole may not have been installed by SAIC.${NC}"
+                read -p "Type 'YES' to confirm complete removal: " CONFIRM_GUAC </dev/tty
+                if [ "$CONFIRM_GUAC" != "YES" ]; then
+                    echo -e "${YELLOW}Falling back to full SAIC cleanup (option 2)${NC}"
+                    perform_cleanup 2
+                    echo -e "${GREEN}Full cleanup complete!${NC}"
+                else
+                    echo -e "${BLUE}Performing complete Guacamole removal...${NC}"
+                    perform_cleanup 3
+                    echo -e "${GREEN}Complete removal done!${NC}"
+                fi
+            else
+                echo -e "${BLUE}Performing complete Guacamole removal...${NC}"
+                perform_cleanup 3
+                echo -e "${GREEN}Complete removal done!${NC}"
+            fi
+            ;;
+        4|*)
+            echo -e "${YELLOW}Skipping cleanup. Will overwrite files.${NC}"
+            echo -e "${YELLOW}Note: Database will be dropped/recreated during install.${NC}"
+            ;;
+    esac
 else
     echo -e "${GREEN}No existing installation detected.${NC}"
     echo ""
@@ -205,20 +382,7 @@ else
     
     if [[ "$CLEAN_ANYWAY" =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}Checking for leftover files...${NC}"
-        
-        # Stop and delete PM2 process if exists
-        if command -v pm2 &> /dev/null; then
-            pm2 stop saic 2>/dev/null || true
-            pm2 delete saic 2>/dev/null || true
-        fi
-        
-        # Remove potential leftovers
-        rm -rf /opt/SAIC 2>/dev/null || true
-        rm -f /etc/nginx/sites-available/saic 2>/dev/null || true
-        rm -f /etc/nginx/sites-enabled/saic 2>/dev/null || true
-        rm -f /etc/nginx/conf.d/saic.conf 2>/dev/null || true
-        rm -f /usr/local/bin/saic-ssl 2>/dev/null || true
-        
+        perform_cleanup 2
         echo -e "${GREEN}Cleanup complete!${NC}"
     fi
 fi
@@ -634,16 +798,18 @@ GUACDEOF
     cd /tmp && tar -xzf mysql-connector.tar.gz
     cp mysql-connector-j-8.0.33/mysql-connector-j-8.0.33.jar /etc/guacamole/lib/
     
-    # Create Guacamole database
+    # Create Guacamole database (drop first for clean reinstall)
     GUAC_DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
     mysql -u root << SQLEOF
-CREATE DATABASE IF NOT EXISTS guacamole_db;
-CREATE USER IF NOT EXISTS 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
+DROP DATABASE IF EXISTS guacamole_db;
+DROP USER IF EXISTS 'guacamole_user'@'localhost';
+CREATE DATABASE guacamole_db;
+CREATE USER 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
 GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole_db.* TO 'guacamole_user'@'localhost';
 FLUSH PRIVILEGES;
 SQLEOF
     
-    # Import schema
+    # Import schema (fresh database ensures no conflicts)
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
     
     # Generate random guacadmin password BEFORE starting Tomcat
@@ -670,6 +836,10 @@ PYEOF
     mkdir -p /opt/SAIC
     echo "${GUAC_ADMIN_PASS}" > /opt/SAIC/.guacadmin_password
     chmod 600 /opt/SAIC/.guacadmin_password
+    
+    # Create marker file to indicate Guacamole was installed by SAIC
+    touch /opt/SAIC/.guacamole_by_saic
+    echo "3" > /opt/SAIC/.mode
     
     echo -e "${GREEN}[GUAC] Guacadmin password set to random value${NC}"
     
@@ -747,11 +917,13 @@ GUACDEOF
     
     mkdir -p /etc/guacamole/{extensions,lib}
     
-    # Setup database (same as Debian)
+    # Setup database (drop first for clean reinstall)
     GUAC_DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
     mysql -u root << SQLEOF
-CREATE DATABASE IF NOT EXISTS guacamole_db;
-CREATE USER IF NOT EXISTS 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
+DROP DATABASE IF EXISTS guacamole_db;
+DROP USER IF EXISTS 'guacamole_user'@'localhost';
+CREATE DATABASE guacamole_db;
+CREATE USER 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
 GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole_db.* TO 'guacamole_user'@'localhost';
 FLUSH PRIVILEGES;
 SQLEOF
@@ -760,6 +932,7 @@ SQLEOF
     wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" -O /tmp/guacamole-auth-jdbc.tar.gz
     cd /tmp && tar -xzf guacamole-auth-jdbc.tar.gz
     cp guacamole-auth-jdbc-${GUAC_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar /etc/guacamole/extensions/
+    # Import schema (fresh database ensures no conflicts)
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
     
     # Generate random guacadmin password BEFORE starting Tomcat
@@ -786,6 +959,10 @@ PYEOF
     mkdir -p /opt/SAIC
     echo "${GUAC_ADMIN_PASS}" > /opt/SAIC/.guacadmin_password
     chmod 600 /opt/SAIC/.guacadmin_password
+    
+    # Create marker file to indicate Guacamole was installed by SAIC
+    touch /opt/SAIC/.guacamole_by_saic
+    echo "3" > /opt/SAIC/.mode
     
     echo -e "${GREEN}[GUAC] Guacadmin password set to random value${NC}"
     
@@ -1552,6 +1729,16 @@ fi
 configure_fail2ban
 
 start_pm2
+
+# Create mode marker for Mode 1 or 2 (Mode 3 creates its own in install_guacamole_*)
+if [ "$INSTALL_GUACAMOLE" = false ]; then
+    mkdir -p /opt/SAIC
+    if [ "$GIT_BRANCH" == "main" ]; then
+        echo "1" > /opt/SAIC/.mode  # Mode 1: Classic
+    else
+        echo "2" > /opt/SAIC/.mode  # Mode 2: Pro
+    fi
+fi
 
 # =============================================
 # GUACAMOLE + MCP SERVER (Option 3 only)
