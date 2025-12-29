@@ -1,5 +1,7 @@
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Play, Pause, Square, Volume2, VolumeX, Minus, Plus } from "lucide-react";
 import {
   Tooltip,
@@ -31,6 +33,45 @@ export function PlaybackControls({
   errorMessage,
 }: PlaybackControlsProps) {
   const isMuted = volume === 0;
+  const [isEditingBpm, setIsEditingBpm] = useState(false);
+  const [bpmInputValue, setBpmInputValue] = useState(bpm.toFixed(1));
+  const bpmInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditingBpm) {
+      setBpmInputValue(bpm.toFixed(1));
+    }
+  }, [bpm, isEditingBpm]);
+
+  useEffect(() => {
+    if (isEditingBpm && bpmInputRef.current) {
+      bpmInputRef.current.focus();
+      bpmInputRef.current.select();
+    }
+  }, [isEditingBpm]);
+
+  const handleBpmInputBlur = () => {
+    setIsEditingBpm(false);
+    const parsed = parseFloat(bpmInputValue);
+    if (!isNaN(parsed)) {
+      const clamped = Math.max(60, Math.min(200, Math.round(parsed * 10) / 10));
+      onBpmChange(clamped);
+    }
+  };
+
+  const handleBpmInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleBpmInputBlur();
+    } else if (e.key === "Escape") {
+      setIsEditingBpm(false);
+      setBpmInputValue(bpm.toFixed(1));
+    }
+  };
+
+  const adjustBpm = (delta: number) => {
+    const newBpm = Math.max(60, Math.min(200, Math.round((bpm + delta) * 10) / 10));
+    onBpmChange(newBpm);
+  };
 
   return (
     <div className="flex items-center justify-between gap-4 p-4 bg-card border-t border-border">
@@ -91,27 +132,86 @@ export function PlaybackControls({
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">BPM</span>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onBpmChange(Math.max(60, Math.round((bpm - 0.1) * 10) / 10))}
-              data-testid="button-bpm-minus"
-            >
-              <Minus className="w-3 h-3" />
-            </Button>
-            <span className="w-12 text-center font-mono text-sm" data-testid="text-bpm">
-              {bpm.toFixed(1)}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onBpmChange(Math.min(200, Math.round((bpm + 0.1) * 10) / 10))}
-              data-testid="button-bpm-plus"
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => adjustBpm(-0.1)}
+                  data-testid="button-bpm-minus-fine"
+                >
+                  <Minus className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>-0.1</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="font-bold"
+                  onClick={() => adjustBpm(-1)}
+                  data-testid="button-bpm-minus-coarse"
+                >
+                  <Minus className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>-1</TooltipContent>
+            </Tooltip>
+            
+            {isEditingBpm ? (
+              <Input
+                ref={bpmInputRef}
+                type="text"
+                inputMode="decimal"
+                value={bpmInputValue}
+                onChange={(e) => setBpmInputValue(e.target.value)}
+                onBlur={handleBpmInputBlur}
+                onKeyDown={handleBpmInputKeyDown}
+                className="w-16 text-center font-mono text-sm"
+                data-testid="input-bpm"
+              />
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditingBpm(true)}
+                className="w-16 font-mono text-sm cursor-text"
+                data-testid="text-bpm"
+              >
+                {bpm.toFixed(1)}
+              </Button>
+            )}
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="font-bold"
+                  onClick={() => adjustBpm(1)}
+                  data-testid="button-bpm-plus-coarse"
+                >
+                  <Plus className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>+1</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => adjustBpm(0.1)}
+                  data-testid="button-bpm-plus-fine"
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>+0.1</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
