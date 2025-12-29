@@ -2,23 +2,82 @@
 
 ## Overview
 
-A mobile-optimized web application that combines Strudel (a live coding music environment) with AI-powered natural language processing to generate music through text prompts. The system converts text descriptions into executable Strudel code, which plays music in real-time using the Web Audio API.
+A mobile-optimized web application that combines Strudel (a live coding music environment) with AI-powered natural language processing to generate music through text prompts. The system supports three deployment modes with different AI integration approaches.
 
 ## Current State
 
 - **Frontend**: Complete with two pages (Simple Mode and DJ Mode)
-- **Backend**: AI code generation endpoint using OpenAI
+- **Backend**: AI code generation endpoint using Claude/OpenAI
 - **Audio**: Web Audio API integration for pattern playback
-- **Deployment**: Debian 13 VPS deployment scripts included
+- **Deployment**: Universal installer supporting Debian/Ubuntu and Rocky/RHEL/AlmaLinux/CentOS
 
-## Key Features
+## Deployment Modes
 
-1. **Simple Mode** (`/`): Single code editor with prompt input, quick-insert toolbar, and tutorial panel
-2. **DJ Mode** (`/dj`): Dual editors for preview/master channels with crossfader control
-3. **AI Code Generation**: Natural language to Strudel code using OpenAI GPT-5
-4. **Quick Insert Patterns**: Pre-built common Strudel patterns (beats, bass, synth, effects)
-5. **Interactive Tutorial**: Built-in Strudel basics guide with playable examples
-6. **Mobile-First Design**: Optimized for Android browsers with touch-friendly controls
+### 1. SAIC Classic (API-based)
+- Simple editor + DJ mode + quick patterns
+- Uses Claude/OpenAI API for code generation
+- Requires API key
+
+### 2. SAIC Pro (API-based)
+- Embedded strudel.cc REPL + music theory tools
+- Uses Claude/OpenAI API for code generation
+- Requires API key
+
+### 3. Remote Desktop + MCP Server (FREE)
+- Guacamole remote desktop via browser
+- Strudel MCP Server (Model Context Protocol)
+- Claude Desktop controls Strudel directly
+- NO API keys required!
+
+## MCP Architecture (Mode 3)
+
+```
+┌─────────────────────────────────────────┐
+│     User Browser (Guacamole Client)     │
+└──────────────┬──────────────────────────┘
+               │ HTTP/WebSocket (port 8080)
+┌──────────────▼──────────────────────────┐
+│        Guacamole / Tomcat               │
+│         (Web Gateway)                   │
+└──────────────┬──────────────────────────┘
+               │ VNC (port 5901, internal)
+┌──────────────▼──────────────────────────┐
+│         XFCE Desktop (VNC)              │
+│  ┌────────────────────────────────┐     │
+│  │      Claude Desktop            │     │
+│  │        (MCP Host)              │     │
+│  └──────────┬─────────────────────┘     │
+│             │ MCP Protocol (stdio)      │
+│  ┌──────────▼─────────────────────┐     │
+│  │   Strudel MCP Server           │     │
+│  │  (@williamzujkowski package)   │     │
+│  │  ├─ Pattern Generation         │     │
+│  │  ├─ Music Theory Engine        │     │
+│  │  ├─ Playwright Browser Control │     │
+│  │  └─ Session Management         │     │
+│  └──────────┬─────────────────────┘     │
+│             │ Browser Automation        │
+│  ┌──────────▼─────────────────────┐     │
+│  │     Chromium + strudel.cc      │     │
+│  │      (Web Audio Playback)      │     │
+│  └────────────────────────────────┘     │
+└─────────────────────────────────────────┘
+```
+
+### MCP Workflow
+1. User connects via Guacamole to remote XFCE desktop
+2. User opens Claude Desktop and types: "Create a techno beat at 130 BPM"
+3. Claude uses Strudel MCP tools to generate pattern code
+4. MCP Server uses Playwright to control strudel.cc in browser
+5. Music plays in real-time through desktop audio
+
+### Key MCP Tools (40+ available)
+- `strudel_initialize` - Start browser and load strudel.cc
+- `strudel_generate_pattern` - AI-generate patterns by genre
+- `strudel_play` / `strudel_stop` - Control playback
+- `music_theory_scales` - Get scale notes
+- `music_theory_chords` - Build chord progressions
+- `pattern_save` / `pattern_load` - Session management
 
 ## Project Architecture
 
@@ -45,61 +104,70 @@ A mobile-optimized web application that combines Strudel (a live coding music en
 │   │   └── App.tsx
 │   └── index.html
 ├── server/                    # Express backend
+│   ├── anthropic.ts          # Claude AI integration
 │   ├── openai.ts             # OpenAI integration
 │   ├── routes.ts             # API endpoints
 │   └── storage.ts            # In-memory storage
 ├── shared/
 │   └── schema.ts             # TypeScript types & Zod schemas
-├── deploy/                   # Debian 13 deployment files
-│   ├── install.sh           # One-command installer
-│   ├── nginx.conf           # Nginx configuration
-│   ├── pm2.config.js        # PM2 process manager config
-│   └── systemd/             # Systemd service files
+├── deploy/                   # Universal deployment files
+│   ├── install.sh           # One-command installer (all 3 modes)
+│   └── README.md            # Deployment documentation
 └── design_guidelines.md     # UI/UX design specifications
 ```
 
 ## API Endpoints
 
-- `POST /api/generate` - Convert natural language to Strudel code
+- `POST /api/generate` - Convert natural language to Strudel code (Claude preferred, OpenAI fallback)
+- `GET /api/status` - Check which AI provider is active
 - `GET /api/snippets` - List saved code snippets
 - `POST /api/snippets` - Save a new code snippet
 
 ## Technology Stack
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Shadcn UI
-- **Backend**: Express.js, OpenAI SDK
+- **Backend**: Express.js, Anthropic SDK, OpenAI SDK
 - **Audio**: Web Audio API
 - **State**: TanStack Query, Local Storage
 - **Routing**: Wouter
+- **MCP**: Strudel MCP Server (@williamzujkowski/strudel-mcp-server)
+- **Remote Desktop**: Guacamole, TigerVNC, XFCE4
 
 ## Environment Variables
 
+### Modes 1 & 2 (API-based)
 - `ANTHROPIC_API_KEY` - Claude AI for code generation (preferred)
 - `OPENAI_API_KEY` - OpenAI fallback for code generation
 - At least one API key is required for AI features to work
+
+### Mode 3 (MCP-based)
+- No API keys required!
+- Claude Desktop + MCP Server handles everything locally
 
 ## Security & Network Configuration
 
 - **Production mode**: Express binds to `127.0.0.1` (localhost only) for security
 - **Development mode**: Express binds to `0.0.0.0` for Replit compatibility
-- **Lazy API client**: OpenAI client only initializes when API endpoint is called
+- **Lazy API client**: Claude/OpenAI clients only initialize when API endpoint is called
 - **Firewall ports**:
   - External: 22 (SSH), 80 (HTTP), 443 (HTTPS)
-  - External (Guacamole mode only): 8080
-  - Internal only: 5000 (Node.js), 4822 (guacd)
+  - External (Mode 3 only): 8080 (Guacamole)
+  - Internal only: 5000 (Node.js), 4822 (guacd), 5901 (VNC)
 
 ## Development
 
 The application runs on port 5000 with Vite dev server. The workflow `Start application` executes `npm run dev`.
 
-## Deployment to Debian 13 VPS
+## Deployment
 
-See `deploy/README.md` for full instructions. Quick start:
+Universal installer supports:
+- Debian 12/13, Ubuntu 22.04+
+- Rocky Linux 9, RHEL 9, AlmaLinux 9, CentOS Stream 9
 
 ```bash
-# On your VPS
-chmod +x deploy/install.sh
-sudo ./deploy/install.sh
+# Download and run installer
+curl -O https://raw.githubusercontent.com/mdario971/SAIC/main/deploy/install.sh
+sudo bash install.sh
 ```
 
 ## Design Notes

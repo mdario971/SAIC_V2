@@ -507,6 +507,343 @@ JAILEOF
     fi
 }
 
+# =============================================
+# GUACAMOLE + STRUDEL MCP SERVER INSTALLATION
+# =============================================
+
+install_guacamole_debian() {
+    echo -e "${BLUE}[GUAC] Installing Guacamole dependencies...${NC}"
+    apt install -y \
+        libcairo2-dev libjpeg62-turbo-dev libpng-dev libtool-bin uuid-dev \
+        libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+        freerdp2-dev libpango1.0-dev libssh2-1-dev libtelnet-dev \
+        libvncserver-dev libwebsockets-dev libpulse-dev libssl-dev \
+        libvorbis-dev libwebp-dev tomcat10 tomcat10-admin tomcat10-user \
+        default-jdk mariadb-server chromium xvfb dbus-x11 \
+        xfce4 xfce4-goodies tigervnc-standalone-server
+
+    # Start MariaDB
+    systemctl enable mariadb
+    systemctl start mariadb
+    
+    # Download and build guacd
+    GUAC_VERSION="1.5.5"
+    cd /tmp
+    wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz || \
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz
+    
+    tar -xzf guacamole-server.tar.gz
+    cd guacamole-server-${GUAC_VERSION}
+    ./configure --with-init-dir=/etc/init.d
+    make
+    make install
+    ldconfig
+    
+    # Create guacd service
+    cat > /etc/systemd/system/guacd.service << 'GUACDEOF'
+[Unit]
+Description=Guacamole Server
+After=network.target
+
+[Service]
+ExecStart=/usr/local/sbin/guacd -f
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+GUACDEOF
+
+    systemctl daemon-reload
+    systemctl enable guacd
+    systemctl start guacd
+    
+    # Download Guacamole client
+    wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /var/lib/tomcat10/webapps/guacamole.war || \
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /var/lib/tomcat10/webapps/guacamole.war
+    
+    # Setup Guacamole directories
+    mkdir -p /etc/guacamole/{extensions,lib}
+    
+    # Download JDBC auth extension for MariaDB
+    wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" -O /tmp/guacamole-auth-jdbc.tar.gz || \
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" -O /tmp/guacamole-auth-jdbc.tar.gz
+    
+    cd /tmp
+    tar -xzf guacamole-auth-jdbc.tar.gz
+    cp guacamole-auth-jdbc-${GUAC_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar /etc/guacamole/extensions/
+    
+    # Download MySQL connector
+    wget -q "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-8.0.33.tar.gz" -O /tmp/mysql-connector.tar.gz
+    cd /tmp && tar -xzf mysql-connector.tar.gz
+    cp mysql-connector-j-8.0.33/mysql-connector-j-8.0.33.jar /etc/guacamole/lib/
+    
+    # Create Guacamole database
+    GUAC_DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    mysql -u root << SQLEOF
+CREATE DATABASE IF NOT EXISTS guacamole_db;
+CREATE USER IF NOT EXISTS 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
+GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole_db.* TO 'guacamole_user'@'localhost';
+FLUSH PRIVILEGES;
+SQLEOF
+    
+    # Import schema
+    cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
+    
+    # Create guacamole.properties
+    cat > /etc/guacamole/guacamole.properties << PROPEOF
+guacd-hostname: localhost
+guacd-port: 4822
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: guacamole_db
+mysql-username: guacamole_user
+mysql-password: ${GUAC_DB_PASS}
+mysql-auto-create-accounts: true
+PROPEOF
+    
+    # Link for Tomcat
+    ln -sf /etc/guacamole /var/lib/tomcat10/.guacamole
+    
+    # Start Tomcat
+    systemctl enable tomcat10
+    systemctl restart tomcat10
+    
+    echo -e "${GREEN}[GUAC] Guacamole installed successfully${NC}"
+}
+
+install_guacamole_rocky() {
+    echo -e "${BLUE}[GUAC] Installing Guacamole dependencies (Rocky)...${NC}"
+    dnf install -y epel-release
+    dnf config-manager --set-enabled crb 2>/dev/null || dnf config-manager --set-enabled powertools
+    
+    dnf install -y \
+        cairo-devel libjpeg-turbo-devel libpng-devel libtool uuid-devel \
+        ffmpeg-devel freerdp-devel pango-devel libssh2-devel libtelnet-devel \
+        libvncserver-devel libwebsockets-devel pulseaudio-libs-devel openssl-devel \
+        libvorbis-devel libwebp-devel tomcat java-11-openjdk-devel mariadb-server \
+        chromium xorg-x11-server-Xvfb dbus-x11 \
+        xfce4-session xfce4-panel xfwm4 tigervnc-server
+
+    # Start MariaDB
+    systemctl enable mariadb
+    systemctl start mariadb
+    
+    # Build guacd from source (similar to Debian)
+    GUAC_VERSION="1.5.5"
+    cd /tmp
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz
+    
+    tar -xzf guacamole-server.tar.gz
+    cd guacamole-server-${GUAC_VERSION}
+    ./configure --with-init-dir=/etc/init.d
+    make
+    make install
+    ldconfig
+    
+    # Create guacd service (same as Debian)
+    cat > /etc/systemd/system/guacd.service << 'GUACDEOF'
+[Unit]
+Description=Guacamole Server
+After=network.target
+
+[Service]
+ExecStart=/usr/local/sbin/guacd -f
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+GUACDEOF
+
+    systemctl daemon-reload
+    systemctl enable guacd
+    systemctl start guacd
+    
+    # Download and deploy WAR
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /var/lib/tomcat/webapps/guacamole.war
+    
+    mkdir -p /etc/guacamole/{extensions,lib}
+    
+    # Setup database (same as Debian)
+    GUAC_DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    mysql -u root << SQLEOF
+CREATE DATABASE IF NOT EXISTS guacamole_db;
+CREATE USER IF NOT EXISTS 'guacamole_user'@'localhost' IDENTIFIED BY '${GUAC_DB_PASS}';
+GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole_db.* TO 'guacamole_user'@'localhost';
+FLUSH PRIVILEGES;
+SQLEOF
+    
+    # Download JDBC extension
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" -O /tmp/guacamole-auth-jdbc.tar.gz
+    cd /tmp && tar -xzf guacamole-auth-jdbc.tar.gz
+    cp guacamole-auth-jdbc-${GUAC_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar /etc/guacamole/extensions/
+    cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
+    
+    # MySQL connector
+    wget -q "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-8.0.33.tar.gz" -O /tmp/mysql-connector.tar.gz
+    cd /tmp && tar -xzf mysql-connector.tar.gz
+    cp mysql-connector-j-8.0.33/mysql-connector-j-8.0.33.jar /etc/guacamole/lib/
+    
+    cat > /etc/guacamole/guacamole.properties << PROPEOF
+guacd-hostname: localhost
+guacd-port: 4822
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: guacamole_db
+mysql-username: guacamole_user
+mysql-password: ${GUAC_DB_PASS}
+mysql-auto-create-accounts: true
+PROPEOF
+    
+    ln -sf /etc/guacamole /var/lib/tomcat/.guacamole
+    
+    systemctl enable tomcat
+    systemctl restart tomcat
+    
+    echo -e "${GREEN}[GUAC] Guacamole installed successfully${NC}"
+}
+
+install_strudel_mcp_server() {
+    echo -e "${BLUE}[MCP] Installing Strudel MCP Server...${NC}"
+    
+    # Create saic user for running VNC and MCP server
+    if ! id "saic" &>/dev/null; then
+        useradd -m -s /bin/bash saic
+        echo "saic:saic123" | chpasswd
+    fi
+    
+    # Install Strudel MCP Server globally
+    npm install -g @williamzujkowski/strudel-mcp-server
+    
+    # Install Playwright and Chromium for the saic user
+    su - saic -c "npm install -g @williamzujkowski/strudel-mcp-server"
+    su - saic -c "npx playwright install chromium"
+    
+    # Create Claude Desktop config directory and config file
+    CLAUDE_CONFIG_DIR="/home/saic/.config/Claude"
+    mkdir -p "$CLAUDE_CONFIG_DIR"
+    
+    cat > "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" << 'CLAUDEEOF'
+{
+  "mcpServers": {
+    "strudel": {
+      "command": "npx",
+      "args": ["-y", "@williamzujkowski/strudel-mcp-server"]
+    }
+  }
+}
+CLAUDEEOF
+    
+    chown -R saic:saic "$CLAUDE_CONFIG_DIR"
+    
+    # Create VNC password file
+    mkdir -p /home/saic/.vnc
+    echo "saic123" | vncpasswd -f > /home/saic/.vnc/passwd
+    chmod 600 /home/saic/.vnc/passwd
+    chown -R saic:saic /home/saic/.vnc
+    
+    # Create xstartup for VNC
+    cat > /home/saic/.vnc/xstartup << 'VNCEOF'
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XKL_XMODMAP_DISABLE=1
+exec startxfce4
+VNCEOF
+    chmod +x /home/saic/.vnc/xstartup
+    chown saic:saic /home/saic/.vnc/xstartup
+    
+    # Create VNC service
+    cat > /etc/systemd/system/vncserver@.service << 'VNCSERVEOF'
+[Unit]
+Description=VNC Server for display %i
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=saic
+Group=saic
+WorkingDirectory=/home/saic
+ExecStartPre=/bin/sh -c '/usr/bin/vncserver -kill :%i > /dev/null 2>&1 || :'
+ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24 -localhost no
+ExecStop=/usr/bin/vncserver -kill :%i
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+VNCSERVEOF
+    
+    systemctl daemon-reload
+    systemctl enable vncserver@1.service
+    systemctl start vncserver@1.service
+    
+    echo -e "${GREEN}[MCP] Strudel MCP Server installed successfully${NC}"
+    echo -e "${CYAN}[MCP] VNC running on display :1 (port 5901)${NC}"
+}
+
+configure_guacamole_connection() {
+    echo -e "${BLUE}[GUAC] Configuring VNC connection...${NC}"
+    
+    # Wait for Tomcat to fully start
+    sleep 5
+    
+    # Add VNC connection via database using valid MySQL syntax
+    # Step 1: Insert connection (use INSERT IGNORE to avoid duplicates)
+    mysql -u root guacamole_db -e "
+        INSERT IGNORE INTO guacamole_connection (connection_name, protocol) 
+        VALUES ('Strudel Desktop', 'vnc');
+    "
+    
+    # Step 2: Get the connection ID
+    CONN_ID=$(mysql -u root guacamole_db -N -s -e "
+        SELECT connection_id FROM guacamole_connection 
+        WHERE connection_name = 'Strudel Desktop' LIMIT 1;
+    ")
+    
+    if [ -z "$CONN_ID" ]; then
+        echo -e "${RED}[GUAC] Failed to create connection!${NC}"
+        return 1
+    fi
+    
+    echo -e "  Connection ID: ${GREEN}$CONN_ID${NC}"
+    
+    # Step 3: Add connection parameters
+    mysql -u root guacamole_db -e "
+        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        VALUES ($CONN_ID, 'hostname', 'localhost');
+        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        VALUES ($CONN_ID, 'port', '5901');
+        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        VALUES ($CONN_ID, 'password', 'saic123');
+    "
+    
+    # Step 4: Grant access to guacadmin user
+    ENTITY_ID=$(mysql -u root guacamole_db -N -s -e "
+        SELECT entity_id FROM guacamole_entity 
+        WHERE name = 'guacadmin' AND type = 'USER' LIMIT 1;
+    ")
+    
+    if [ -n "$ENTITY_ID" ]; then
+        mysql -u root guacamole_db -e "
+            INSERT IGNORE INTO guacamole_connection_permission (entity_id, connection_id, permission)
+            VALUES ($ENTITY_ID, $CONN_ID, 'READ');
+        "
+        echo -e "  Granted access to guacadmin"
+    fi
+    
+    # Verify the connection was created
+    VERIFY=$(mysql -u root guacamole_db -N -s -e "
+        SELECT COUNT(*) FROM guacamole_connection_parameter 
+        WHERE connection_id = $CONN_ID;
+    ")
+    
+    if [ "$VERIFY" -ge 3 ]; then
+        echo -e "${GREEN}[GUAC] VNC connection 'Strudel Desktop' configured successfully${NC}"
+    else
+        echo -e "${YELLOW}[GUAC] Connection created but may be incomplete${NC}"
+    fi
+}
+
 clone_repo() {
     echo -e "${BLUE}[5/8] Cloning repository (branch: $GIT_BRANCH)...${NC}"
     mkdir -p /opt
@@ -1081,6 +1418,33 @@ configure_fail2ban
 
 start_pm2
 
+# =============================================
+# GUACAMOLE + MCP SERVER (Option 3 only)
+# =============================================
+if [ "$INSTALL_GUACAMOLE" = true ]; then
+    echo ""
+    echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║          INSTALLING REMOTE DESKTOP + MCP SERVER            ║${NC}"
+    echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    # Install Guacamole
+    if [ "$DETECTED_OS" == "debian" ]; then
+        install_guacamole_debian
+    else
+        install_guacamole_rocky
+    fi
+    
+    # Install Strudel MCP Server and VNC desktop
+    install_strudel_mcp_server
+    
+    # Configure Guacamole connection to VNC
+    configure_guacamole_connection
+    
+    echo ""
+    echo -e "${GREEN}Remote Desktop + MCP Server installation complete!${NC}"
+fi
+
 # Get IP and domain
 SERVER_IP=$(hostname -I | awk '{print $1}')
 SERVER_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
@@ -1112,8 +1476,34 @@ fi
 echo -e "  App URL:      ${GREEN}http://$SERVER_IP${NC}"
 echo ""
 
+# Guacamole-specific info for Option 3
+if [ "$INSTALL_GUACAMOLE" = true ]; then
+    echo -e "${CYAN}=== Remote Desktop (Guacamole) ===${NC}"
+    echo -e "  Guacamole URL:     ${GREEN}http://$SERVER_IP:8080/guacamole${NC}"
+    echo -e "  Default Login:     ${GREEN}guacadmin / guacadmin${NC}"
+    echo -e "  ${YELLOW}(Change this password immediately after first login!)${NC}"
+    echo ""
+    echo -e "${CYAN}=== Strudel MCP Server ===${NC}"
+    echo -e "  Desktop User:      ${GREEN}saic${NC}"
+    echo -e "  Desktop Password:  ${GREEN}saic123${NC}"
+    echo -e "  VNC Display:       ${GREEN}:1 (port 5901)${NC}"
+    echo ""
+    echo -e "${CYAN}=== How to Use (FREE - No API Keys!) ===${NC}"
+    echo -e "  1. Open ${GREEN}http://$SERVER_IP:8080/guacamole${NC}"
+    echo -e "  2. Login with ${GREEN}guacadmin / guacadmin${NC}"
+    echo -e "  3. Click on ${GREEN}'Strudel Desktop'${NC} connection"
+    echo -e "  4. Open browser in desktop, go to ${GREEN}strudel.cc${NC}"
+    echo -e "  5. Install ${GREEN}Claude Desktop${NC} and use MCP to generate music!"
+    echo ""
+    echo -e "${YELLOW}=== Claude Desktop Setup ===${NC}"
+    echo -e "  MCP config is pre-installed at:"
+    echo -e "  ${GREEN}/home/saic/.config/Claude/claude_desktop_config.json${NC}"
+    echo -e "  Just install Claude Desktop and it will auto-detect Strudel MCP!"
+    echo ""
+fi
+
 if [ -n "$AUTH_USER" ]; then
-    echo -e "${CYAN}=== Login Credentials ===${NC}"
+    echo -e "${CYAN}=== App Login Credentials ===${NC}"
     echo -e "  Username:     ${GREEN}$AUTH_USER${NC}"
     echo -e "  Password:     ${GREEN}********${NC}"
     echo ""
