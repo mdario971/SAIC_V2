@@ -832,22 +832,32 @@ install_strudel_mcp_server() {
         echo "saic:${VNC_PASSWORD}" | chpasswd
     fi
     
-    # Install Strudel MCP Server globally
-    npm install -g @williamzujkowski/strudel-mcp-server
+    # Configure npm to use local directory for saic user to avoid permission issues
+    # Use absolute path to avoid tilde expansion issues
+    su - saic -c "mkdir -p /home/saic/.npm-global && npm config set prefix /home/saic/.npm-global"
     
-    # Install Playwright and Chromium for the saic user
-    su - saic -c "npm install -g @williamzujkowski/strudel-mcp-server"
-    su - saic -c "npx playwright install chromium"
+    # Add npm-global/bin to saic user's PATH for all shell types
+    NPM_PATH_LINE='export PATH="/home/saic/.npm-global/bin:$PATH"'
+    for rcfile in /home/saic/.bashrc /home/saic/.profile; do
+        if ! grep -q 'npm-global/bin' "$rcfile" 2>/dev/null; then
+            echo "$NPM_PATH_LINE" >> "$rcfile"
+        fi
+    done
+    chown saic:saic /home/saic/.bashrc /home/saic/.profile
+    
+    # Install Strudel MCP Server for the saic user (now uses ~/.npm-global)
+    su - saic -c "export PATH=\"/home/saic/.npm-global/bin:\$PATH\" && npm install -g @williamzujkowski/strudel-mcp-server"
+    su - saic -c "export PATH=\"/home/saic/.npm-global/bin:\$PATH\" && npx playwright install chromium"
     
     # Create Claude Desktop config directory and config file
     CLAUDE_CONFIG_DIR="/home/saic/.config/Claude"
     mkdir -p "$CLAUDE_CONFIG_DIR"
     
-    cat > "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" << 'CLAUDEEOF'
+    cat > "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" << CLAUDEEOF
 {
   "mcpServers": {
     "strudel": {
-      "command": "npx",
+      "command": "/home/saic/.npm-global/bin/npx",
       "args": ["-y", "@williamzujkowski/strudel-mcp-server"]
     }
   }
@@ -862,12 +872,13 @@ CLAUDEEOF
     chmod 600 /home/saic/.vnc/passwd
     chown -R saic:saic /home/saic/.vnc
     
-    # Create xstartup for VNC
+    # Create xstartup for VNC with npm-global PATH for MCP server access
     cat > /home/saic/.vnc/xstartup << 'VNCEOF'
 #!/bin/bash
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 export XKL_XMODMAP_DISABLE=1
+export PATH="/home/saic/.npm-global/bin:$PATH"
 exec startxfce4
 VNCEOF
     chmod +x /home/saic/.vnc/xstartup
