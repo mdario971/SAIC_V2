@@ -296,6 +296,14 @@ perform_cleanup() {
         ldconfig 2>/dev/null || true
         echo -e "  ${GREEN}[OK]${NC} Removed libguac libraries"
         
+        # Stop and remove Tomcat 10 (apt package - from old installations)
+        if dpkg -l | grep -q tomcat10 2>/dev/null; then
+            systemctl stop tomcat10 2>/dev/null || true
+            systemctl disable tomcat10 2>/dev/null || true
+            apt remove --purge tomcat10 tomcat10-admin tomcat10-user -y 2>/dev/null || true
+            echo -e "  ${GREEN}[OK]${NC} Removed Tomcat 10 (apt package)"
+        fi
+        
         # Stop and remove Tomcat 9 (manual installation)
         systemctl stop tomcat9 2>/dev/null || true
         systemctl disable tomcat9 2>/dev/null || true
