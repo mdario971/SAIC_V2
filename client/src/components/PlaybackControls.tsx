@@ -95,19 +95,19 @@ export function PlaybackControls({
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => onBpmChange(Math.max(60, bpm - 5))}
+              onClick={() => onBpmChange(Math.max(60, Math.round((bpm - 0.1) * 10) / 10))}
               data-testid="button-bpm-minus"
             >
               <Minus className="w-3 h-3" />
             </Button>
-            <span className="w-10 text-center font-mono text-sm" data-testid="text-bpm">
-              {bpm}
+            <span className="w-12 text-center font-mono text-sm" data-testid="text-bpm">
+              {bpm.toFixed(1)}
             </span>
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => onBpmChange(Math.min(200, bpm + 5))}
+              onClick={() => onBpmChange(Math.min(200, Math.round((bpm + 0.1) * 10) / 10))}
               data-testid="button-bpm-plus"
             >
               <Plus className="w-3 h-3" />

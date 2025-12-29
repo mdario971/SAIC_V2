@@ -589,6 +589,13 @@ SQLEOF
     # Import schema
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
     
+    # Note: Guacamole default password is 'guacadmin' - user must change via web UI after first login
+    # Guacamole uses its own password hashing that isn't easily replicated via CLI
+    # Store reminder about default password
+    mkdir -p /opt/SAIC
+    echo "guacadmin" > /opt/SAIC/.guacadmin_password
+    chmod 600 /opt/SAIC/.guacadmin_password
+    
     # Create guacamole.properties
     cat > /etc/guacamole/guacamole.properties << PROPEOF
 guacd-hostname: localhost
@@ -705,10 +712,20 @@ PROPEOF
 install_strudel_mcp_server() {
     echo -e "${BLUE}[MCP] Installing Strudel MCP Server...${NC}"
     
+    # Ensure /opt/SAIC directory exists before storing credentials
+    mkdir -p /opt/SAIC
+    
+    # Generate random VNC password (8 chars alphanumeric)
+    VNC_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 8)
+    
+    # Store VNC password immediately after generation
+    echo "${VNC_PASSWORD}" > /opt/SAIC/.vnc_password
+    chmod 600 /opt/SAIC/.vnc_password
+    
     # Create saic user for running VNC and MCP server
     if ! id "saic" &>/dev/null; then
         useradd -m -s /bin/bash saic
-        echo "saic:saic123" | chpasswd
+        echo "saic:${VNC_PASSWORD}" | chpasswd
     fi
     
     # Install Strudel MCP Server globally
@@ -735,9 +752,9 @@ CLAUDEEOF
     
     chown -R saic:saic "$CLAUDE_CONFIG_DIR"
     
-    # Create VNC password file
+    # Create VNC password file with random password
     mkdir -p /home/saic/.vnc
-    echo "saic123" | vncpasswd -f > /home/saic/.vnc/passwd
+    echo "${VNC_PASSWORD}" | vncpasswd -f > /home/saic/.vnc/passwd
     chmod 600 /home/saic/.vnc/passwd
     chown -R saic:saic /home/saic/.vnc
     
@@ -807,6 +824,9 @@ configure_guacamole_connection() {
     
     echo -e "  Connection ID: ${GREEN}$CONN_ID${NC}"
     
+    # Get the VNC password from file
+    VNC_PASS=$(cat /opt/SAIC/.vnc_password 2>/dev/null || echo "changeme")
+    
     # Step 3: Add connection parameters
     mysql -u root guacamole_db -e "
         INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
@@ -814,7 +834,7 @@ configure_guacamole_connection() {
         INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
         VALUES ($CONN_ID, 'port', '5901');
         INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
-        VALUES ($CONN_ID, 'password', 'saic123');
+        VALUES ($CONN_ID, 'password', '${VNC_PASS}');
     "
     
     # Step 4: Grant access to guacadmin user
@@ -1478,14 +1498,15 @@ echo ""
 
 # Guacamole-specific info for Option 3
 if [ "$INSTALL_GUACAMOLE" = true ]; then
+    VNC_PASS=$(cat /opt/SAIC/.vnc_password 2>/dev/null || echo "unknown")
     echo -e "${CYAN}=== Remote Desktop (Guacamole) ===${NC}"
     echo -e "  Guacamole URL:     ${GREEN}http://$SERVER_IP:8080/guacamole${NC}"
-    echo -e "  Default Login:     ${GREEN}guacadmin / guacadmin${NC}"
-    echo -e "  ${YELLOW}(Change this password immediately after first login!)${NC}"
+    echo -e "  Admin Login:       ${GREEN}guacadmin / guacadmin${NC}"
+    echo -e "  ${RED}SECURITY: Change this password immediately after first login!${NC}"
     echo ""
     echo -e "${CYAN}=== Strudel MCP Server ===${NC}"
     echo -e "  Desktop User:      ${GREEN}saic${NC}"
-    echo -e "  Desktop Password:  ${GREEN}saic123${NC}"
+    echo -e "  Desktop Password:  ${GREEN}${VNC_PASS}${NC}"
     echo -e "  VNC Display:       ${GREEN}:1 (port 5901)${NC}"
     echo ""
     echo -e "${CYAN}=== How to Use (FREE - No API Keys!) ===${NC}"
@@ -1516,6 +1537,9 @@ echo -e "  ${YELLOW}saic-stats${NC}          - CPU, memory, disk usage overview"
 echo -e "  ${YELLOW}saic-security${NC}       - Firewall status, banned IPs, failed logins"
 echo -e "  ${YELLOW}saic-passwd${NC}         - Change/reset password protection"
 echo -e "  ${YELLOW}saic-ssl${NC}            - Setup SSL certificate"
+echo -e "  ${YELLOW}saic-users${NC}          - List web access users"
+echo -e "  ${YELLOW}saic-adduser${NC}        - Add a new web access user"
+echo -e "  ${YELLOW}saic-deluser${NC}        - Remove a web access user"
 echo ""
 echo -e "${CYAN}=== PM2 Commands ===${NC}"
 echo -e "  ${YELLOW}pm2 logs saic${NC}       - View raw application logs"
@@ -1852,6 +1876,234 @@ echo "  - Run 'saic-passwd' to set password protection"
 echo ""
 SECEOF
 chmod +x /usr/local/bin/saic-security
+
+# Create saic-users helper script
+cat > /usr/local/bin/saic-users << 'USERSEOF'
+#!/bin/bash
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+ENV_FILE="/opt/SAIC/.env"
+
+echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                 SAIC WEB ACCESS USERS                      ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo -e "${YELLOW}No configuration found at $ENV_FILE${NC}"
+    exit 1
+fi
+
+if grep -q "AUTH_USER" "$ENV_FILE" 2>/dev/null; then
+    CURRENT_USER=$(grep "AUTH_USER=" "$ENV_FILE" | cut -d'=' -f2)
+    echo -e "${CYAN}=== Configured Users ===${NC}"
+    echo -e "  ${GREEN}$CURRENT_USER${NC} (web access)"
+else
+    echo -e "${YELLOW}No web access users configured.${NC}"
+    echo -e "Run ${CYAN}saic-adduser${NC} to add a user."
+fi
+echo ""
+USERSEOF
+chmod +x /usr/local/bin/saic-users
+
+# Create saic-adduser helper script
+cat > /usr/local/bin/saic-adduser << 'ADDUSEREOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ENV_FILE="/opt/SAIC/.env"
+
+echo -e "${CYAN}=== Add SAIC Web Access User ===${NC}"
+echo ""
+
+if [ ! -f "$ENV_FILE" ]; then
+    touch "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+fi
+
+read -p "Enter username: " NEW_USER </dev/tty
+read -s -p "Enter password: " NEW_PASS </dev/tty
+echo ""
+read -s -p "Confirm password: " CONFIRM_PASS </dev/tty
+echo ""
+
+if [ "$NEW_PASS" != "$CONFIRM_PASS" ]; then
+    echo -e "${RED}Passwords do not match!${NC}"
+    exit 1
+fi
+
+if [ -z "$NEW_USER" ] || [ -z "$NEW_PASS" ]; then
+    echo -e "${RED}Username and password cannot be empty!${NC}"
+    exit 1
+fi
+
+# Remove existing auth lines
+sed -i '/AUTH_USER/d' "$ENV_FILE"
+sed -i '/AUTH_PASS/d' "$ENV_FILE"
+
+# Add new credentials
+echo "AUTH_USER=$NEW_USER" >> "$ENV_FILE"
+echo "AUTH_PASS=$NEW_PASS" >> "$ENV_FILE"
+
+echo ""
+echo -e "${GREEN}User '$NEW_USER' added! Restarting app...${NC}"
+pm2 restart saic
+echo -e "${GREEN}Done!${NC}"
+ADDUSEREOF
+chmod +x /usr/local/bin/saic-adduser
+
+# Create saic-deluser helper script
+cat > /usr/local/bin/saic-deluser << 'DELUSEREOF'
+#!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ENV_FILE="/opt/SAIC/.env"
+
+echo -e "${CYAN}=== Remove SAIC Web Access User ===${NC}"
+echo ""
+
+if ! grep -q "AUTH_USER" "$ENV_FILE" 2>/dev/null; then
+    echo -e "${YELLOW}No web access user configured.${NC}"
+    exit 0
+fi
+
+CURRENT_USER=$(grep "AUTH_USER=" "$ENV_FILE" | cut -d'=' -f2)
+echo -e "Current user: ${GREEN}$CURRENT_USER${NC}"
+echo ""
+read -p "Remove this user and disable password protection? (y/N): " CONFIRM </dev/tty
+
+if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+    sed -i '/AUTH_USER/d' "$ENV_FILE"
+    sed -i '/AUTH_PASS/d' "$ENV_FILE"
+    echo ""
+    echo -e "${GREEN}User removed! Restarting app...${NC}"
+    pm2 restart saic
+    echo -e "${GREEN}Done! Password protection is now disabled.${NC}"
+else
+    echo "Cancelled."
+fi
+DELUSEREOF
+chmod +x /usr/local/bin/saic-deluser
+
+# Create MOTD login banner with security info
+cat > /usr/local/bin/saic-motd << 'MOTDEOF'
+#!/bin/bash
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Detect auth log path
+if [ -f /var/log/auth.log ]; then
+    AUTH_LOG="/var/log/auth.log"
+elif [ -f /var/log/secure ]; then
+    AUTH_LOG="/var/log/secure"
+else
+    AUTH_LOG=""
+fi
+
+echo ""
+echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║            SAIC - Strudel AI Music Generator               ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+# System info
+echo -e "${CYAN}=== System ===${NC}"
+echo -e "  Hostname:     $(hostname)"
+echo -e "  IP:           $(hostname -I | awk '{print $1}')"
+echo -e "  Uptime:       $(uptime -p 2>/dev/null || uptime | awk -F'up ' '{print $2}' | awk -F',' '{print $1}')"
+echo ""
+
+# Last 10 successful SSH logins (portable parsing without grep -P)
+echo -e "${CYAN}=== Last 10 Successful SSH Logins ===${NC}"
+if [ -n "$AUTH_LOG" ]; then
+    grep -E "Accepted (password|publickey)" "$AUTH_LOG" 2>/dev/null | tail -10 | while read line; do
+        timestamp=$(echo "$line" | awk '{print $1, $2, $3}')
+        user=$(echo "$line" | sed -n 's/.*for \([^ ]*\).*/\1/p')
+        ip=$(echo "$line" | sed -n 's/.*from \([0-9.]*\).*/\1/p')
+        method=$(echo "$line" | sed -n 's/.*Accepted \([^ ]*\).*/\1/p')
+        if [ -n "$user" ] && [ -n "$ip" ]; then
+            printf "  ${GREEN}%-12s${NC} | %-15s | %-12s | %s\n" "$timestamp" "$user" "$ip" "$method"
+        fi
+    done
+else
+    echo -e "  ${YELLOW}Auth log not found${NC}"
+fi
+echo ""
+
+# Last 10 successful web logins (from nginx access log)
+if [ -f /var/log/nginx/access.log ]; then
+    echo -e "${CYAN}=== Last 10 Web Access (200 OK) ===${NC}"
+    grep " 200 " /var/log/nginx/access.log 2>/dev/null | tail -10 | while read line; do
+        ip=$(echo "$line" | awk '{print $1}')
+        timestamp=$(echo "$line" | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | cut -c1-20)
+        path=$(echo "$line" | awk '{print $7}' | cut -c1-30)
+        if [ -n "$ip" ]; then
+            printf "  %-15s | %-20s | %s\n" "$ip" "$timestamp" "$path"
+        fi
+    done
+    echo ""
+fi
+
+# Top 5 IPs with failed logins (portable parsing)
+echo -e "${CYAN}=== Top 5 IPs with Failed Logins ===${NC}"
+if [ -n "$AUTH_LOG" ]; then
+    grep -E "Failed|Invalid|authentication failure" "$AUTH_LOG" 2>/dev/null | \
+        sed -n 's/.*from \([0-9.]*\).*/\1/p' | \
+        sort | uniq -c | sort -rn | head -5 | while read count ip; do
+            if [ -n "$ip" ]; then
+                last_attempt=$(grep "$ip" "$AUTH_LOG" 2>/dev/null | grep -E "Failed|Invalid" | tail -1 | awk '{print $1, $2, $3}')
+                printf "  ${RED}%-15s${NC} | %4d failed | Last: %s\n" "$ip" "$count" "$last_attempt"
+            fi
+        done
+else
+    echo -e "  ${YELLOW}Auth log not found${NC}"
+fi
+echo ""
+
+# fail2ban status
+if systemctl is-active --quiet fail2ban 2>/dev/null; then
+    banned_total=0
+    jails=$(fail2ban-client status 2>/dev/null | grep "Jail list" | cut -d: -f2 | tr ',' ' ')
+    for jail in $jails; do
+        jail=$(echo $jail | xargs)
+        if [ -n "$jail" ]; then
+            banned=$(fail2ban-client status $jail 2>/dev/null | grep "Currently banned" | awk '{print $NF}')
+            banned_total=$((banned_total + banned))
+        fi
+    done
+    echo -e "${CYAN}=== fail2ban ===${NC}"
+    echo -e "  Currently banned IPs: ${RED}${banned_total}${NC}"
+    echo ""
+fi
+
+echo -e "${YELLOW}Run 'saic-security' for detailed security info${NC}"
+echo ""
+MOTDEOF
+chmod +x /usr/local/bin/saic-motd
+
+# Add MOTD to shell profile
+if ! grep -q "saic-motd" /etc/profile.d/saic.sh 2>/dev/null; then
+    cat > /etc/profile.d/saic.sh << 'PROFILEEOF'
+# SAIC Login Banner
+if [ -x /usr/local/bin/saic-motd ] && [ -t 0 ]; then
+    /usr/local/bin/saic-motd
+fi
+PROFILEEOF
+    chmod +x /etc/profile.d/saic.sh
+fi
 
 # Ask about SSL setup
 echo -e "${CYAN}=== SSL Certificate Setup ===${NC}"
