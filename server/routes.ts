@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateStrudelCode } from "./openai";
+import { generateStrudelCode, isOpenAIAvailable } from "./openai";
+import { generateStrudelCodeWithClaude, isAnthropicAvailable } from "./anthropic";
 import { z } from "zod";
 
 const generateRequestSchema = z.object({
@@ -20,14 +21,28 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // AI Code Generation endpoint
+  // AI Code Generation endpoint - uses Claude if available, falls back to OpenAI
   app.post("/api/generate", async (req, res) => {
     try {
       const { prompt, context } = generateRequestSchema.parse(req.body);
       
-      const code = await generateStrudelCode(prompt, context);
+      let code: string;
+      let provider: string;
       
-      res.json({ code, success: true });
+      if (isAnthropicAvailable()) {
+        code = await generateStrudelCodeWithClaude(prompt, context);
+        provider = "claude";
+      } else if (isOpenAIAvailable()) {
+        code = await generateStrudelCode(prompt, context);
+        provider = "openai";
+      } else {
+        return res.status(503).json({
+          error: "No AI provider configured. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable.",
+          success: false
+        });
+      }
+      
+      res.json({ code, success: true, provider });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
@@ -42,6 +57,15 @@ export async function registerRoutes(
         success: false 
       });
     }
+  });
+  
+  // API status endpoint
+  app.get("/api/status", (req, res) => {
+    res.json({
+      anthropic: isAnthropicAvailable(),
+      openai: isOpenAIAvailable(),
+      provider: isAnthropicAvailable() ? "claude" : isOpenAIAvailable() ? "openai" : null
+    });
   });
 
   // Code snippets storage endpoints

@@ -74,7 +74,9 @@ A mobile-optimized web application that combines Strudel (a live coding music en
 
 ## Environment Variables
 
-- `OPENAI_API_KEY` - Optional for AI code generation (app starts without it)
+- `ANTHROPIC_API_KEY` - Claude AI for code generation (preferred)
+- `OPENAI_API_KEY` - OpenAI fallback for code generation
+- At least one API key is required for AI features to work
 
 ## Security & Network Configuration
 
