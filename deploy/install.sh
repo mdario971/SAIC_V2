@@ -513,10 +513,35 @@ JAILEOF
 
 install_guacamole_debian() {
     echo -e "${BLUE}[GUAC] Installing Guacamole dependencies...${NC}"
+    
+    # Detect Debian version for freerdp package selection
+    # Try numeric version first, then fall back to codename detection
+    DEBIAN_VERSION_RAW=$(cat /etc/debian_version 2>/dev/null)
+    DEBIAN_MAJOR=$(echo "$DEBIAN_VERSION_RAW" | grep -o '^[0-9]\+' 2>/dev/null)
+    
+    # If no numeric version, check for codename (trixie=13, sid=unstable)
+    if [ -z "$DEBIAN_MAJOR" ]; then
+        if echo "$DEBIAN_VERSION_RAW" | grep -qiE "trixie|sid|testing|unstable"; then
+            DEBIAN_MAJOR=13
+        else
+            # Fallback to os-release VERSION_ID (portable sed, no grep -P)
+            DEBIAN_MAJOR=$(sed -n 's/^VERSION_ID="\([0-9]*\)".*/\1/p' /etc/os-release 2>/dev/null)
+            DEBIAN_MAJOR=${DEBIAN_MAJOR:-12}
+        fi
+    fi
+    
+    if [ "$DEBIAN_MAJOR" -ge 13 ] 2>/dev/null; then
+        FREERDP_PKG="freerdp3-dev"
+        echo -e "  ${CYAN}Detected Debian 13+ ($DEBIAN_VERSION_RAW), using freerdp3-dev${NC}"
+    else
+        FREERDP_PKG="freerdp2-dev"
+        echo -e "  ${CYAN}Detected Debian $DEBIAN_MAJOR, using freerdp2-dev${NC}"
+    fi
+    
     apt install -y \
         libcairo2-dev libjpeg62-turbo-dev libpng-dev libtool-bin uuid-dev \
         libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
-        freerdp2-dev libpango1.0-dev libssh2-1-dev libtelnet-dev \
+        $FREERDP_PKG libpango1.0-dev libssh2-1-dev libtelnet-dev \
         libvncserver-dev libwebsockets-dev libpulse-dev libssl-dev \
         libvorbis-dev libwebp-dev tomcat10 tomcat10-admin tomcat10-user \
         default-jdk mariadb-server chromium xvfb dbus-x11 \
