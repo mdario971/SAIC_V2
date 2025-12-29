@@ -170,13 +170,17 @@ if systemctl list-unit-files | grep -q "guacd.service"; then
     FOUND_GUACAMOLE=true
     GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - guacd systemd service"
 fi
-if ls /var/lib/tomcat*/webapps/guacamole* &>/dev/null 2>&1; then
+if ls /opt/tomcat9/webapps/guacamole* &>/dev/null 2>&1 || ls /var/lib/tomcat*/webapps/guacamole* &>/dev/null 2>&1; then
     FOUND_GUACAMOLE=true
     GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - Tomcat Guacamole webapp"
 fi
 if systemctl list-unit-files | grep -q "vncserver@.service"; then
     FOUND_GUACAMOLE=true
     GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - VNC server service"
+fi
+if systemctl list-unit-files | grep -q "tomcat9.service"; then
+    FOUND_GUACAMOLE=true
+    GUACAMOLE_ITEMS="${GUACAMOLE_ITEMS}\n  - Tomcat 9 server"
 fi
 
 # Check if Guacamole was installed by SAIC
@@ -280,6 +284,8 @@ perform_cleanup() {
         echo -e "  ${GREEN}[OK]${NC} Removed /etc/guacamole"
         
         # Remove Guacamole webapp from Tomcat
+        rm -f /opt/tomcat9/webapps/guacamole.war 2>/dev/null
+        rm -rf /opt/tomcat9/webapps/guacamole 2>/dev/null
         rm -f /var/lib/tomcat*/webapps/guacamole.war 2>/dev/null
         rm -rf /var/lib/tomcat*/webapps/guacamole 2>/dev/null
         echo -e "  ${GREEN}[OK]${NC} Removed Tomcat Guacamole webapp"
@@ -289,6 +295,21 @@ perform_cleanup() {
         rm -rf /usr/local/lib/freerdp* 2>/dev/null
         ldconfig 2>/dev/null || true
         echo -e "  ${GREEN}[OK]${NC} Removed libguac libraries"
+        
+        # Stop and remove Tomcat 9 (manual installation)
+        systemctl stop tomcat9 2>/dev/null || true
+        systemctl disable tomcat9 2>/dev/null || true
+        rm -f /etc/systemd/system/tomcat9.service 2>/dev/null
+        rm -rf /opt/tomcat9 2>/dev/null
+        echo -e "  ${GREEN}[OK]${NC} Removed Tomcat 9"
+        
+        # Remove tomcat user
+        if id "tomcat" &>/dev/null; then
+            userdel tomcat 2>/dev/null || true
+            echo -e "  ${GREEN}[OK]${NC} Removed tomcat user"
+        fi
+        
+        systemctl daemon-reload 2>/dev/null || true
     fi
 }
 
@@ -322,7 +343,7 @@ if [ "$FOUND_EXISTING" = true ] || [ "$FOUND_GUACAMOLE" = true ]; then
     echo ""
     echo -e "  ${GREEN}3)${NC} Complete Guacamole removal"
     echo -e "     Everything in option 2, PLUS:"
-    echo -e "     Removes: guacd, VNC service, Guacamole webapp, libguac"
+    echo -e "     Removes: guacd, VNC, Tomcat 9, Guacamole webapp, libguac"
     if [ "$GUAC_BY_SAIC" = true ]; then
         echo -e "     ${GREEN}Safe:${NC} Guacamole was installed by SAIC"
     else
@@ -702,14 +723,71 @@ install_guacamole_debian() {
         echo -e "  ${CYAN}Detected Debian $DEBIAN_MAJOR, using freerdp2-dev${NC}"
     fi
     
+    # Install dependencies (NO tomcat10 - we install Tomcat 9 manually for Guacamole compatibility)
     apt install -y \
         libcairo2-dev libjpeg62-turbo-dev libpng-dev libtool-bin uuid-dev \
         libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
         $FREERDP_PKG libpango1.0-dev libssh2-1-dev libtelnet-dev \
         libvncserver-dev libwebsockets-dev libpulse-dev libssl-dev \
-        libvorbis-dev libwebp-dev tomcat10 tomcat10-admin tomcat10-user \
-        default-jdk mariadb-server chromium xvfb dbus-x11 \
+        libvorbis-dev libwebp-dev default-jdk mariadb-server chromium xvfb dbus-x11 \
         xfce4 xfce4-goodies tigervnc-standalone-server
+    
+    # Install Tomcat 9 manually (Tomcat 10+ uses jakarta.* which is incompatible with Guacamole)
+    echo -e "  ${BLUE}Installing Apache Tomcat 9...${NC}"
+    TOMCAT_VERSION="9.0.98"
+    TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
+    
+    # Create tomcat user
+    if ! id "tomcat" &>/dev/null; then
+        useradd -r -m -U -d /opt/tomcat9 -s /bin/false tomcat
+    fi
+    
+    # Stop existing Tomcat 9 if running (for reinstalls)
+    systemctl stop tomcat9 2>/dev/null || true
+    
+    # Download and extract Tomcat 9
+    cd /tmp
+    rm -rf apache-tomcat-* 2>/dev/null
+    wget -q "$TOMCAT_URL" -O tomcat9.tar.gz || \
+    wget -q "https://archive.apache.org/dist/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz" -O tomcat9.tar.gz || {
+        echo -e "  ${RED}[ERROR]${NC} Failed to download Tomcat 9"
+        exit 1
+    }
+    
+    mkdir -p /opt/tomcat9
+    tar -xzf tomcat9.tar.gz -C /opt/tomcat9 --strip-components=1
+    chown -R tomcat:tomcat /opt/tomcat9
+    chmod +x /opt/tomcat9/bin/*.sh
+    
+    # Create Tomcat 9 systemd service
+    cat > /etc/systemd/system/tomcat9.service << 'TOMCATEOF'
+[Unit]
+Description=Apache Tomcat 9 Web Application Server
+After=network.target
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+
+Environment="JAVA_HOME=/usr/lib/jvm/default-java"
+Environment="CATALINA_HOME=/opt/tomcat9"
+Environment="CATALINA_BASE=/opt/tomcat9"
+Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+
+ExecStart=/opt/tomcat9/bin/startup.sh
+ExecStop=/opt/tomcat9/bin/shutdown.sh
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+TOMCATEOF
+    
+    systemctl daemon-reload
+    echo -e "  ${GREEN}[OK]${NC} Tomcat 9 installed to /opt/tomcat9"
 
     # Start MariaDB
     systemctl enable mariadb
@@ -778,9 +856,10 @@ GUACDEOF
     systemctl enable guacd
     systemctl start guacd
     
-    # Download Guacamole client
-    wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /var/lib/tomcat10/webapps/guacamole.war || \
-    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /var/lib/tomcat10/webapps/guacamole.war
+    # Download Guacamole client WAR to Tomcat 9 webapps
+    wget -q "https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /opt/tomcat9/webapps/guacamole.war || \
+    wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/binary/guacamole-${GUAC_VERSION}.war" -O /opt/tomcat9/webapps/guacamole.war
+    chown tomcat:tomcat /opt/tomcat9/webapps/guacamole.war
     
     # Setup Guacamole directories
     mkdir -p /etc/guacamole/{extensions,lib}
@@ -855,12 +934,17 @@ mysql-password: ${GUAC_DB_PASS}
 mysql-auto-create-accounts: true
 PROPEOF
     
-    # Link for Tomcat
-    ln -sf /etc/guacamole /var/lib/tomcat10/.guacamole
+    # Link guacamole config for Tomcat 9
+    ln -sf /etc/guacamole /opt/tomcat9/.guacamole
+    chown -h tomcat:tomcat /opt/tomcat9/.guacamole
     
-    # Start Tomcat
-    systemctl enable tomcat10
-    systemctl restart tomcat10
+    # Start Tomcat 9
+    systemctl enable tomcat9
+    systemctl start tomcat9
+    
+    # Wait for Tomcat to deploy the WAR
+    echo -e "  ${BLUE}Waiting for Guacamole WAR deployment...${NC}"
+    sleep 5
     
     echo -e "${GREEN}[GUAC] Guacamole installed successfully${NC}"
 }
@@ -883,7 +967,7 @@ install_guacamole_rocky() {
     systemctl start mariadb
     
     # Build guacd from source (similar to Debian)
-    GUAC_VERSION="1.5.5"
+    GUAC_VERSION="1.6.0"
     cd /tmp
     wget -q "https://dlcdn.apache.org/guacamole/${GUAC_VERSION}/source/guacamole-server-${GUAC_VERSION}.tar.gz" -O guacamole-server.tar.gz
     
