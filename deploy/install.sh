@@ -589,12 +589,32 @@ SQLEOF
     # Import schema
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
     
-    # Note: Guacamole default password is 'guacadmin' - user must change via web UI after first login
-    # Guacamole uses its own password hashing that isn't easily replicated via CLI
-    # Store reminder about default password
+    # Generate random guacadmin password BEFORE starting Tomcat
+    # Guacamole uses SHA-256(password + salt) stored as binary
+    GUAC_ADMIN_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 12)
+    
+    # Generate salt as hex (avoids NUL byte issues in bash)
+    GUAC_SALT_HEX=$(openssl rand -hex 32)
+    
+    # Compute SHA-256(password + salt_bytes) using Python for binary safety
+    GUAC_HASH_HEX=$(python3 << PYEOF
+import hashlib
+password = "${GUAC_ADMIN_PASS}".encode('utf-8')
+salt = bytes.fromhex("${GUAC_SALT_HEX}")
+hash_bytes = hashlib.sha256(password + salt).hexdigest()
+print(hash_bytes)
+PYEOF
+)
+    
+    # Update guacadmin password in database before Tomcat starts
+    mysql -u root guacamole_db -e "UPDATE guacamole_user SET password_hash=UNHEX('${GUAC_HASH_HEX}'), password_salt=UNHEX('${GUAC_SALT_HEX}'), password_date=NOW() WHERE entity_id=(SELECT entity_id FROM guacamole_entity WHERE name='guacadmin' AND type='USER');"
+    
+    # Store password securely
     mkdir -p /opt/SAIC
-    echo "guacadmin" > /opt/SAIC/.guacadmin_password
+    echo "${GUAC_ADMIN_PASS}" > /opt/SAIC/.guacadmin_password
     chmod 600 /opt/SAIC/.guacadmin_password
+    
+    echo -e "${GREEN}[GUAC] Guacadmin password set to random value${NC}"
     
     # Create guacamole.properties
     cat > /etc/guacamole/guacamole.properties << PROPEOF
@@ -684,6 +704,33 @@ SQLEOF
     cd /tmp && tar -xzf guacamole-auth-jdbc.tar.gz
     cp guacamole-auth-jdbc-${GUAC_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | mysql -u root guacamole_db
+    
+    # Generate random guacadmin password BEFORE starting Tomcat
+    # Guacamole uses SHA-256(password + salt) stored as binary
+    GUAC_ADMIN_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 12)
+    
+    # Generate salt as hex (avoids NUL byte issues in bash)
+    GUAC_SALT_HEX=$(openssl rand -hex 32)
+    
+    # Compute SHA-256(password + salt_bytes) using Python for binary safety
+    GUAC_HASH_HEX=$(python3 << PYEOF
+import hashlib
+password = "${GUAC_ADMIN_PASS}".encode('utf-8')
+salt = bytes.fromhex("${GUAC_SALT_HEX}")
+hash_bytes = hashlib.sha256(password + salt).hexdigest()
+print(hash_bytes)
+PYEOF
+)
+    
+    # Update guacadmin password in database before Tomcat starts
+    mysql -u root guacamole_db -e "UPDATE guacamole_user SET password_hash=UNHEX('${GUAC_HASH_HEX}'), password_salt=UNHEX('${GUAC_SALT_HEX}'), password_date=NOW() WHERE entity_id=(SELECT entity_id FROM guacamole_entity WHERE name='guacadmin' AND type='USER');"
+    
+    # Store password securely
+    mkdir -p /opt/SAIC
+    echo "${GUAC_ADMIN_PASS}" > /opt/SAIC/.guacadmin_password
+    chmod 600 /opt/SAIC/.guacadmin_password
+    
+    echo -e "${GREEN}[GUAC] Guacadmin password set to random value${NC}"
     
     # MySQL connector
     wget -q "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-8.0.33.tar.gz" -O /tmp/mysql-connector.tar.gz
@@ -1499,10 +1546,11 @@ echo ""
 # Guacamole-specific info for Option 3
 if [ "$INSTALL_GUACAMOLE" = true ]; then
     VNC_PASS=$(cat /opt/SAIC/.vnc_password 2>/dev/null || echo "unknown")
+    GUAC_PASS=$(cat /opt/SAIC/.guacadmin_password 2>/dev/null || echo "unknown")
     echo -e "${CYAN}=== Remote Desktop (Guacamole) ===${NC}"
     echo -e "  Guacamole URL:     ${GREEN}http://$SERVER_IP:8080/guacamole${NC}"
-    echo -e "  Admin Login:       ${GREEN}guacadmin / guacadmin${NC}"
-    echo -e "  ${RED}SECURITY: Change this password immediately after first login!${NC}"
+    echo -e "  Admin Login:       ${GREEN}guacadmin / ${GUAC_PASS}${NC}"
+    echo -e "  ${YELLOW}(Save these credentials - randomly generated!)${NC}"
     echo ""
     echo -e "${CYAN}=== Strudel MCP Server ===${NC}"
     echo -e "  Desktop User:      ${GREEN}saic${NC}"
