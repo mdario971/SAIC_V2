@@ -1227,14 +1227,22 @@ configure_guacamole_connection() {
     # Get the VNC password from file
     VNC_PASS=$(cat /opt/SAIC/.vnc_password 2>/dev/null || echo "changeme")
     
-    # Step 3: Add connection parameters
+    # Step 3: Add connection parameters (use REPLACE to update existing values)
+    # First delete any existing parameters for this connection to ensure clean state
     mysql -u root guacamole_db -e "
-        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        DELETE FROM guacamole_connection_parameter WHERE connection_id = $CONN_ID;
+    "
+    
+    # Now insert fresh parameters
+    mysql -u root guacamole_db -e "
+        INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
         VALUES ($CONN_ID, 'hostname', 'localhost');
-        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
         VALUES ($CONN_ID, 'port', '5901');
-        INSERT IGNORE INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
         VALUES ($CONN_ID, 'password', '${VNC_PASS}');
+        INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+        VALUES ($CONN_ID, 'username', 'saic');
     "
     
     # Step 4: Grant access to guacadmin user
@@ -1257,10 +1265,11 @@ configure_guacamole_connection() {
         WHERE connection_id = $CONN_ID;
     ")
     
-    if [ "$VERIFY" -ge 3 ]; then
+    if [ "$VERIFY" -ge 4 ]; then
         echo -e "${GREEN}[GUAC] VNC connection 'Strudel Desktop' configured successfully${NC}"
+        echo -e "${CYAN}[GUAC] VNC password stored in /opt/SAIC/.vnc_password${NC}"
     else
-        echo -e "${YELLOW}[GUAC] Connection created but may be incomplete${NC}"
+        echo -e "${YELLOW}[GUAC] Connection created but may be incomplete (${VERIFY} parameters)${NC}"
     fi
 }
 
