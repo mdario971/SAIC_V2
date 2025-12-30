@@ -1,0 +1,40 @@
+debian@vps-e1d360fd:/$ # Test VNC server directly from localhost
+timeout 3 nc -v 127.0.0.1 5901
+# Check syslog for guacd errors during connection
+sudo tail -50 /var/log/syslog | grep -E 'guacd|guac'
+# Check if VNC password file is readable by saic user
+sudo ls -la /home/saic/.vnc/
+sudo ls -la /home/saic/.config/tigervnc/
+# Try connecting with vncviewer to test VNC auth
+echo "Testing VNC password..."
+sudo cat /opt/SAIC/.vnc_password
+# Also check what's in the actual VNC password file (the encoded one)
+sudo file /home/saic/.vnc/passwd
+Connection to 127.0.0.1 5901 port [tcp/*] succeeded!
+RFB 003.008
+2025-12-30T10:44:53.553527+00:00 vps-e1d360fd guacd[1867605]: Guacamole
+protocol violation. Perhaps the version of guacamole-client is incompatible with this version of guacd?
+2025-12-30T10:44:53.553729+00:00 vps-e1d360fd guacd[1867605]: guacd[1867605]: ERROR:#011Guacamole protocol violation. Perhaps the version of guacamole-client is incompatible with this version of guacd?
+2025-12-30T10:50:30.433937+00:00 vps-e1d360fd systemd[1]: Stopping guacd.service - Guacamole Server...
+2025-12-30T10:50:30.435436+00:00 vps-e1d360fd systemd[1]: guacd.service: Deactivated successfully.
+2025-12-30T10:50:30.438280+00:00 vps-e1d360fd systemd[1]: Stopped guacd.service - Guacamole Server.
+2025-12-30T10:50:30.440332+00:00 vps-e1d360fd systemd[1]: Started guacd.service - Guacamole Server.
+2025-12-30T10:50:30.488259+00:00 vps-e1d360fd guacd[1883436]: Guacamole
+proxy daemon (guacd) version 1.6.0 started
+2025-12-30T10:50:30.488457+00:00 vps-e1d360fd guacd[1883436]: guacd[1883436]: INFO:#011Guacamole proxy daemon (guacd) version 1.6.0 started
+2025-12-30T10:50:30.488547+00:00 vps-e1d360fd guacd[1883436]: guacd[1883436]: INFO:#011Listening on host 127.0.0.1, port 4822
+2025-12-30T10:50:30.488589+00:00 vps-e1d360fd guacd[1883436]: Listening
+on host 127.0.0.1, port 4822
+2025-12-30T10:50:31.043749+00:00 vps-e1d360fd mariadbd[3898776]: 2025-12-30 10:50:31 97 [Warning] Aborted connection 97 to db: 'guacamole_db' user: 'guacamole_user' host: 'localhost' (Got an error reading communication packets)
+total 16
+drwxr-xr-x  2 saic saic 4096 Dec 30 06:08 .
+drwx------ 19 saic saic 4096 Dec 30 10:30 ..
+-rw-------  1 saic saic    8 Dec 30 10:23 passwd
+-rwxr-xr-x  1 saic saic   81 Dec 30 00:38 xstartup
+total 56
+drwxr-xr-x 2 saic saic  4096 Dec 30 10:30 .
+drwxr-xr-x 9 saic saic  4096 Dec 30 06:09 ..
+-rw------- 1 saic saic     8 Dec 30 10:23 passwd
+-rw-rw-r-- 1 saic saic 35694 Dec 30 10:53 vps-e1d360fd.vps.ovh.net:1.log-rw-rw-r-- 1 saic saic     8 Dec 30 10:30 vps-e1d360fd.vps.ovh.net:1.pidTesting VNC password...
+4WFVrZNB
+/home/saic/.vnc/passwd: data
